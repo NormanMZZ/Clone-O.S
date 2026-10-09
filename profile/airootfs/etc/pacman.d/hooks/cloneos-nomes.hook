@@ -1,0 +1,25 @@
+# Mantém os nomes no estilo do Windows 11 quando os aplicativos do KDE são atualizados.
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = dolphin
+Target = kate
+Target = kcalc
+Target = gwenview
+Target = haruna
+Target = spectacle
+Target = kolourpaint
+Target = kamoso
+Target = konsole
+Target = plasma-systemmonitor
+Target = okular
+Target = ark
+Target = kinfocenter
+Target = systemsettings
+
+[Action]
+Description = Atualizando os nomes dos aplicativos no menu Iniciar...
+When = PostTransaction
+Exec = /usr/local/bin/cloneos-nomes

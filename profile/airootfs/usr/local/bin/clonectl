@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# clonectl: personalização do Clone OS pela linha de comando.
+# Usado pelo Clone Welcome, pelo app Configurações e pelo Claude (veja /usr/share/cloneos/CLAUDE.md).
+set -euo pipefail
+
+state_dir="${XDG_CONFIG_HOME:-$HOME/.config}/cloneos"
+state="$state_dir/look.json"
+wallpapers=/usr/share/wallpapers
+
+usage() {
+    cat <<'EOF'
+Uso: clonectl <comando> [argumento]
+
+  theme dark|light          Tema escuro ou claro
+  accent <#RRGGBB>|auto     Cor de destaque (auto = cor do tema)
+  wallpaper <nome|arquivo>  Papel de parede: bloom, brisa, night, dawn, aurora, graphite ou um arquivo
+  wallpapers                Lista os papéis de parede do Clone OS
+  taskbar center|left       Ícones da barra de tarefas no centro (como no Windows 11) ou à esquerda
+  taskbar autohide on|off   Esconder a barra de tarefas quando não estiver em uso
+  status                    Mostra a aparência atual em JSON
+EOF
+}
+
+die() { echo "clonectl: $*" >&2; exit 1; }
+
+get() { [[ -s "$state" ]] && jq -r --arg k "$1" '.[$k] // empty' "$state" || true; }
+
+save() {
+    mkdir -p "$state_dir"
+    local current='{}'
+    [[ -s "$state" ]] && current="$(cat "$state")"
+    jq --arg k "$1" --arg v "$2" '.[$k] = $v' <<<"$current" >"$state.tmp"
+    mv "$state.tmp" "$state"
+}
+
+wallpaper_path() {
+    if [[ -f "$1" ]]; then
+        realpath -- "$1"
+        return
+    fi
+    local dir="$wallpapers/CloneOS-${1^}/contents/images"
+    [[ -d "$dir" ]] || die "papel de parede desconhecido: $1 (veja: clonectl wallpapers)"
+    find "$dir" -maxdepth 1 -type f | sort | tail -n 1
+}
+
+set_icons() {
+    if [[ -x /usr/lib/plasma-changeicons ]] && /usr/lib/plasma-changeicons "$1" >/dev/null 2>&1; then
+        return
+    fi
+    kwriteconfig6 --file kdeglobals --group Icons --key Theme "$1"
+}
+
+cmd_theme() {
+    local scheme icons
+    case "${1:-}" in
+        dark)  scheme=CloneOSDark;  icons=CloneOS-Dark ;;
+        light) scheme=CloneOSLight; icons=CloneOS-Light ;;
+        *) die "use: clonectl theme dark|light" ;;
+    esac
+    plasma-apply-colorscheme "$scheme" >/dev/null 2>&1 || true
+    set_icons "$icons"
+    save theme "$1"
+
+    # Como no Windows 11, o papel de parede padrão acompanha o tema.
+    case "$1:$(get wallpaper)" in
+        light:bloom) cmd_wallpaper brisa >/dev/null ;;
+        dark:brisa)  cmd_wallpaper bloom >/dev/null ;;
+    esac
+
+    local accent
+    accent="$(get accent)"
+    if [[ -n "$accent" && "$accent" != auto ]]; then
+        plasma-apply-colorscheme --accent-color "$accent" >/dev/null
+    fi
+    echo "Tema: $1"
+}
+
+cmd_accent() {
+    local color="${1:-}"
+    if [[ "$color" == auto ]]; then
+        kwriteconfig6 --file kdeglobals --group General --key AccentColor --delete
+        # Reaplicar o mesmo esquema não tem efeito; alterna por um instante para forçar.
+        local theme scheme
+        theme="$(get theme)"
+        scheme=CloneOSDark
+        [[ "$theme" == light ]] && scheme=CloneOSLight
+        plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
+        plasma-apply-colorscheme "$scheme" >/dev/null 2>&1 || true
+    elif [[ "$color" =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+        plasma-apply-colorscheme --accent-color "$color" >/dev/null
+    else
+        die "cor inválida: '$color' (use #RRGGBB ou auto)"
+    fi
+    save accent "$color"
+    echo "Cor de destaque: $color"
+}
+
+cmd_wallpaper() {
+    [[ -n "${1:-}" ]] || die "use: clonectl wallpaper <nome|arquivo>"
+    local image
+    image="$(wallpaper_path "$1")"
+    plasma-apply-wallpaperimage "$image" >/dev/null
+    local name="$1"
+    [[ -f "$1" ]] && name="$image"
+    save wallpaper "$name"
+    echo "Papel de parede: $image"
+}
+
+cmd_wallpapers() {
+    local dir
+    for dir in "$wallpapers"/CloneOS-*/; do
+        dir="${dir%/}"
+        printf '%-10s %s\n' "$(basename "$dir" | sed 's/^CloneOS-//' | tr '[:upper:]' '[:lower:]')" \
+            "$(jq -r '.KPlugin.Name' "$dir/metadata.json" 2>/dev/null)"
+    done
+}
+
+plasma_script() {
+    busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "$1" >/dev/null         || die "o plasmashell não respondeu (a sessão gráfica está aberta?)"
+}
+
+cmd_taskbar() {
+    case "${1:-}:${2:-}" in
+        center:|left:)
+            # O primeiro espaçador da barra (à esquerda do Iniciar) é que centraliza os ícones:
+            # flexível = centro; fixo e sem largura = tudo encostado à esquerda.
+            local expanding=true
+            [[ "$1" == left ]] && expanding=false
+            plasma_script "
+                panels().forEach(function (panel) {
+                    if (panel.location != 'bottom') return;
+                    var spacers = panel.widgets('org.kde.plasma.panelspacer');
+                    if (!spacers.length) return;
+                    spacers.sort(function (a, b) { return a.id - b.id; });
+                    spacers[0].currentConfigGroup = ['General'];
+                    spacers[0].writeConfig('expanding', $expanding);
+                    spacers[0].writeConfig('length', 1);
+                    spacers[0].reloadConfig();
+                });"
+            save taskbar "$1"
+            echo "Barra de tarefas: $([[ "$1" == left ]] && echo 'à esquerda' || echo 'centralizada')"
+            ;;
+        autohide:on|autohide:off)
+            local hiding=none
+            [[ "$2" == on ]] && hiding=autohide
+            plasma_script "
+                panels().forEach(function (panel) {
+                    if (panel.location == 'bottom') panel.hiding = '$hiding';
+                });"
+            save taskbar_autohide "$2"
+            echo "Esconder a barra automaticamente: $([[ "$2" == on ]] && echo sim || echo não)"
+            ;;
+        *) die "use: clonectl taskbar center|left  ou  clonectl taskbar autohide on|off" ;;
+    esac
+}
+
+cmd_status() {
+    local scheme icons
+    scheme="$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null || true)"
+    icons="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null || true)"
+    local saved='{}'
+    [[ -s "$state" ]] && saved="$(cat "$state")"
+    jq --arg scheme "$scheme" --arg icons "$icons" '. + {color_scheme: $scheme, icon_theme: $icons}' <<<"$saved"
+}
+
+case "${1:-}" in
+    theme)      shift; cmd_theme "$@" ;;
+    accent)     shift; cmd_accent "$@" ;;
+    wallpaper)  shift; cmd_wallpaper "$@" ;;
+    wallpapers) cmd_wallpapers ;;
+    taskbar)    shift; cmd_taskbar "$@" ;;
+    status)     cmd_status ;;
+    -h|--help|help|"") usage ;;
+    *) usage >&2; exit 2 ;;
+esac

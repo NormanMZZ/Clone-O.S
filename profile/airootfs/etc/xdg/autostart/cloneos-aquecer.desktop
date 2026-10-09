@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Clone OS: pré-carregar programas
+Exec=/usr/local/bin/cloneos-aquecer
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

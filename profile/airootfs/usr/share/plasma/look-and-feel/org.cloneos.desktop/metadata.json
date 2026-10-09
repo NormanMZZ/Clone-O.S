@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Clone OS"
+            }
+        ],
+        "Category": "",
+        "Description": "Barra de tarefas e menu Iniciar no estilo do Windows 11, com as cores do Clone OS",
+        "Id": "org.cloneos.desktop",
+        "License": "GPLv2+",
+        "Name": "Clone OS",
+        "Version": "0.3"
+    },
+    "Keywords": "Desktop;Workspace;Appearance;Look and Feel;Windows 11;Clone OS;",
+    "X-Plasma-APIVersion": "2"
+}

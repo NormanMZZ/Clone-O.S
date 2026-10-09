@@ -1,0 +1,9 @@
+[Unit]
+Description=Clone OS: verifica se há atualizações
+ConditionPathExists=!/run/archiso
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/cloneos-avisar-atualizacoes
+Nice=19
+IOSchedulingClass=idle

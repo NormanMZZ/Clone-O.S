@@ -1,0 +1,12 @@
+# Mantém a identidade do Clone OS quando o pacote "filesystem" do Arch é atualizado.
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+
+[Action]
+Description = Restaurando a identidade do Clone OS...
+When = PostTransaction
+Exec = /usr/local/bin/cloneos-brand

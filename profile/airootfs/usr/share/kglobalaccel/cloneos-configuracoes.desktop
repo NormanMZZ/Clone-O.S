@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Configurações
+GenericName=Configurações do sistema
+Comment=Sistema, rede, personalização, Claude e atualizações
+Exec=/usr/local/bin/clone-configuracoes
+Icon=cloneos-configuracoes
+Categories=System;Settings;
+Keywords=configurações;configuracoes;settings;painel de controle;sistema;
+StartupWMClass=clone-configuracoes
+X-KDE-Shortcuts=Meta+I

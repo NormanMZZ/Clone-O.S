@@ -1,0 +1,140 @@
+# Pacotes do Clone OS 0.3 (edição notebook), somados aos do perfil oficial "releng" do Arch.
+# Todos são dos repositórios oficiais (core/extra), menos os do repositório local
+# "cloneos" (compilados pelo build.sh a partir de aur/).
+
+# Área de trabalho: KDE Plasma 6
+plasma-desktop
+plasma-nm
+plasma-pa
+plasma-systemmonitor
+plasma-x11-session
+plasma-disks
+plasma-firewall
+kwin-x11
+kdeplasma-addons
+kscreen
+powerdevil
+power-profiles-daemon
+bluedevil
+kinfocenter
+kde-gtk-config
+breeze-gtk
+kwallet-pam
+xdg-desktop-portal-kde
+xdg-user-dirs
+xorg-server
+qt6-translations
+sddm
+sddm-kcm
+
+# Aplicativos essenciais (os nomes no menu seguem o Windows 11: veja cloneos-nomes)
+konsole
+dolphin
+kate
+ark
+spectacle
+gwenview
+okular
+kcalc
+haruna
+kolourpaint
+kdialog
+ffmpegthumbs
+kdegraphics-thumbnailers
+
+# Boot com o logo do fabricante e senha do disco em tela gráfica (como no Windows)
+plymouth
+
+# Claude, navegador e terminal (repositório local "cloneos")
+claude-desktop
+claude-code
+brave-bin
+yay-bin
+alacritty
+
+# Escritório
+libreoffice-fresh
+libreoffice-fresh-pt-br
+
+# Ferramentas que o Claude e os apps do Clone OS usam
+python
+python-pip
+pyside6
+python-openpyxl
+python-requests
+jq
+git
+ripgrep
+base-devel
+
+# Drivers do notebook (o kernel do Arch já traz os módulos: i915, snd_hda_intel/SOF, uvcvideo,
+# btusb, iwlwifi/rtw88/ath10k, i2c-hid/elan/synaptics, ideapad-laptop/thinkpad_acpi; aqui ficam
+# os firmwares e as partes do sistema que fazem cada um funcionar)
+# - firmware de tudo: Wi-Fi, Bluetooth, vídeo Intel/AMD/NVIDIA, áudio Intel SOF e placas antigas
+linux-firmware
+sof-firmware
+alsa-firmware
+intel-ucode
+# - vídeo: Intel UHD 620 (e AMD Radeon ou NVIDIA, se o modelo tiver placa dedicada)
+mesa
+vulkan-intel
+vulkan-radeon
+intel-media-driver
+libva-intel-driver
+libva-utils
+switcheroo-control
+# - áudio e microfone (PipeWire; perfis de áudio dos notebooks)
+alsa-ucm-conf
+alsa-utils
+# - webcam (UVC e câmeras MIPI) e o app Câmera
+v4l-utils
+pipewire-libcamera
+kamoso
+# - teclado, touchpad e telas sensíveis ao toque
+libinput
+xf86-input-libinput
+iio-sensor-proxy
+# - Bluetooth (fones, caixas de som, mouses) e leitor de digital, se o notebook tiver
+bluez
+bluez-utils
+fprintd
+# - temperatura e energia (Intel)
+thermald
+
+# Desempenho em HD: zram no lugar de swap em disco, ajustes do disco
+zram-generator
+hdparm
+
+# Segurança e manutenção (padrões do Arch + camadas no estilo do Windows 11)
+linux-lts
+ufw
+fwupd
+arch-audit
+pacman-contrib
+reflector
+libnotify
+# Inicialização Segura com chaves próprias (boot assinado) e controle de acesso dos programas
+sbctl
+apparmor
+# Antivírus sob demanda (nada fica rodando; as vacinas são atualizadas uma vez por dia)
+clamav
+
+# Som, rede e fontes
+pipewire
+pipewire-pulse
+pipewire-alsa
+pipewire-jack
+wireplumber
+# OCR (dependência do KDE): sem isso o pacman escolhe o idioma africâner
+tesseract-data-por
+tesseract-data-eng
+networkmanager
+noto-fonts
+noto-fonts-emoji
+ttf-jetbrains-mono
+inter-font
+
+# Utilitários
+htop
+btop
+fastfetch

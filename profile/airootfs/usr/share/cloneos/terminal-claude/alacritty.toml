@@ -1,0 +1,69 @@
+# Terminal Claude: visual inspirado no app do Claude (fundo grafite quente,
+# texto creme e destaque argila). Usado só pelo comando terminal-claude.
+
+[window]
+dimensions = { columns = 112, lines = 32 }
+padding = { x = 18, y = 14 }
+dynamic_padding = true
+decorations = "Full"
+dynamic_title = false
+
+[scrolling]
+history = 20000
+
+[font]
+size = 11.5
+normal = { family = "JetBrains Mono", style = "Regular" }
+bold = { family = "JetBrains Mono", style = "Bold" }
+italic = { family = "JetBrains Mono", style = "Italic" }
+
+[cursor]
+style = { shape = "Beam", blinking = "On" }
+blink_interval = 600
+
+[selection]
+save_to_clipboard = false
+
+[mouse]
+hide_when_typing = true
+
+[colors.primary]
+background = "#262624"
+foreground = "#ECEAE3"
+dim_foreground = "#9C998F"
+
+[colors.cursor]
+text = "#262624"
+cursor = "#D97757"
+
+[colors.selection]
+text = "CellForeground"
+background = "#5B3D30"
+
+[colors.search.matches]
+foreground = "#262624"
+background = "#E0B15E"
+
+[colors.search.focused_match]
+foreground = "#262624"
+background = "#D97757"
+
+[colors.normal]
+black = "#3A3935"
+red = "#E5786D"
+green = "#8FB573"
+yellow = "#E0B15E"
+blue = "#6A9BCC"
+magenta = "#C792B8"
+cyan = "#7FB8AE"
+white = "#D6D3C9"
+
+[colors.bright]
+black = "#6B6862"
+red = "#F09487"
+green = "#A9CC8C"
+yellow = "#EDC77E"
+blue = "#8DB5DD"
+magenta = "#D9A9CA"
+cyan = "#9CCFC6"
+white = "#FAF9F5"

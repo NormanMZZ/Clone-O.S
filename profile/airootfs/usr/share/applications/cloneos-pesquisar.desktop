@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Pesquisar
+Comment=Procure aplicativos, arquivos e configurações
+Exec=krunner
+Icon=cloneos-pesquisar
+NoDisplay=true
+StartupNotify=false

@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# clone-antivirus: verifica arquivos e pastas com o ClamAV, só quando você pede.
+# Nada fica rodando em segundo plano: a memória só é usada durante a verificação.
+# As vacinas (assinaturas de vírus) são atualizadas uma vez por dia pelo
+# clamav-freshclam-once.timer.
+#
+#   clone-antivirus                  Downloads, Área de Trabalho e Documentos
+#   clone-antivirus ARQUIVO|PASTA…   o que você escolher (é o "Verificar vírus" do Explorador)
+set -uo pipefail
+
+if [[ ! -t 0 || ! -t 1 ]]; then
+    exec konsole -p tabtitle="Antivírus" -e "$0" "$@"
+fi
+
+blue=$'\e[38;2;23;147;209m'; clay=$'\e[38;2;217;119;87m'; green=$'\e[38;2;60;203;138m'; bold=$'\e[1m'; off=$'\e[0m'
+pause() { echo; read -rp "Pressione Enter para fechar..." _ || true; }
+
+printf '\n%s==>%s %sAntivírus do Clone OS (ClamAV)%s\n\n' "$blue" "$off" "$bold" "$off"
+
+if ! compgen -G '/var/lib/clamav/*.c[lv]d' >/dev/null; then
+    echo "As vacinas do antivírus ainda não foram baixadas (com internet, o sistema baixa"
+    echo "sozinho uma vez por dia). São uns 200 MB."
+    read -rp "Baixar agora? [S/n] " answer
+    if [[ "${answer,,}" == n* ]]; then
+        exit 0
+    fi
+    sudo freshclam || { echo "${clay}Não foi possível baixar as vacinas. Verifique a internet.${off}"; pause; exit 1; }
+fi
+
+targets=("$@")
+if (( ${#targets[@]} == 0 )); then
+    for dir in DOWNLOAD DESKTOP DOCUMENTS; do
+        path="$(xdg-user-dir "$dir")"
+        [[ -d "$path" && "$path" != "$HOME" ]] && targets+=("$path")
+    done
+fi
+(( ${#targets[@]} )) || { echo "Nada para verificar."; pause; exit 0; }
+
+printf 'Verificando (pode levar alguns minutos no HD):\n'
+printf '  %s\n' "${targets[@]}"
+echo
+ionice -c 3 nice -n 19 clamscan --recursive --infected --bell \
+    --max-filesize=200M --max-scansize=400M "${targets[@]}"
+rc=$?
+
+echo
+case $rc in
+    0)
+        echo "${green}${bold}Nenhuma ameaça encontrada.${off}"
+        notify-send --app-name="Antivírus" --icon=security-high "Nenhuma ameaça encontrada" \
+            "Verificação concluída sem problemas." 2>/dev/null
+        ;;
+    1)
+        echo "${clay}${bold}Ameaças encontradas: veja os arquivos marcados como FOUND acima.${off}"
+        echo "Apague esses arquivos (ou peça ajuda ao Claude para conferir antes)."
+        notify-send --app-name="Antivírus" --icon=security-low --urgency=critical "Ameaças encontradas" \
+            "Abra a janela do antivírus para ver os arquivos." 2>/dev/null
+        ;;
+    *)
+        echo "${clay}A verificação não terminou (código $rc).${off}"
+        ;;
+esac
+pause

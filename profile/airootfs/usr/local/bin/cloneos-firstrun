@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Primeiro login de cada usuário: aparência padrão do Clone OS e ícones na área de
+# trabalho (Lixeira, Terminal Claude, Claude e Brave, como os atalhos do Windows).
+# A barra de tarefas no estilo do Windows 11 vem do tema global org.cloneos.desktop.
+set -u
+
+state="${XDG_CONFIG_HOME:-$HOME/.config}/cloneos"
+mkdir -p "$state" "$HOME/Clone"
+[[ -e "$state/firstrun-done" && -e "$state/desktop-done" && -e "$state/touchpad-done" ]] && exit 0
+
+if [[ ! -e "$state/desktop-done" ]]; then
+    xdg-user-dirs-update
+    desktop="$(xdg-user-dir DESKTOP)"
+    mkdir -p "$desktop"
+    install -m 755 /usr/share/cloneos/desktop/lixeira.desktop "$desktop/lixeira.desktop"
+    apps=(terminal-claude com.anthropic.Claude brave-browser)
+    [[ -d /run/archiso ]] && apps=(clone-install "${apps[@]}")
+    for app in "${apps[@]}"; do
+        [[ -f "/usr/share/applications/$app.desktop" ]] &&
+            install -m 755 "/usr/share/applications/$app.desktop" "$desktop/$app.desktop"
+    done
+    touch "$state/desktop-done"
+fi
+
+# O papel de parede só pode ser trocado depois que o plasmashell estiver no ar.
+for _ in $(seq 60); do
+    busctl --user status org.kde.plasmashell >/dev/null 2>&1 && break
+    sleep 1
+done
+sleep 2
+if [[ ! -e "$state/firstrun-done" ]]; then
+    clonectl theme dark >/dev/null 2>&1
+    clonectl wallpaper bloom >/dev/null 2>&1 && touch "$state/firstrun-done"
+fi
+
+# Touchpad com toque para clicar, como no Windows (o padrão do libinput é desligado).
+# O KWin guarda a escolha; ela continua mudável em Configurações → Bluetooth e dispositivos.
+if [[ ! -e "$state/touchpad-done" ]]; then
+    kwin=org.kde.KWin
+    devices="$(busctl --user get-property $kwin /org/kde/KWin/InputDevice \
+        org.kde.KWin.InputDeviceManager devicesSysNames 2>/dev/null | grep -o 'event[0-9]*')"
+    for dev in $devices; do
+        path="/org/kde/KWin/InputDevice/$dev"
+        if [[ "$(busctl --user get-property $kwin "$path" org.kde.KWin.InputDevice touchpad 2>/dev/null)" == "b true" ]]; then
+            busctl --user set-property $kwin "$path" org.kde.KWin.InputDevice tapToClick b true
+            busctl --user set-property $kwin "$path" org.kde.KWin.InputDevice disableWhileTyping b true 2>/dev/null
+        fi
+    done
+    [[ -n "$devices" ]] && touch "$state/touchpad-done"
+fi

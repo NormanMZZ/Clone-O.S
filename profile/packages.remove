@@ -1,0 +1,3 @@
+# Pacotes do "releng" que o Clone OS não usa.
+# cloud-init atrasa o boot de uma área de trabalho.
+cloud-init

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Roda uma única vez, dentro do chroot, enquanto o mkarchiso gera a ISO
+# (disparado por /etc/pacman.d/hooks/90-cloneos-build.hook, que é removido depois).
+set -euo pipefail
+
+/usr/local/bin/cloneos-brand
+
+# Idioma, fuso e teclado brasileiros
+sed -i -E 's/^#\s*(pt_BR\.UTF-8 UTF-8)/\1/; s/^#\s*(en_US\.UTF-8 UTF-8)/\1/' /etc/locale.gen
+locale-gen
+ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+printf 'KEYMAP=br-abnt2\n' >/etc/vconsole.conf
+
+# Firewall ligado: bloqueia conexões que chegam de fora, libera as que saem.
+sed -i 's/^ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf
+
+# Tela de boot do Clone OS: as imagens da animação vêm do tema "spinner" do Plymouth;
+# só a marca embaixo (watermark.png) é do Clone OS.
+cp -n /usr/share/plymouth/themes/spinner/*.png /usr/share/plymouth/themes/cloneos/
+
+# Antivírus sob demanda: sem o serviço residente (clamd), então a atualização das
+# vacinas não tenta avisá-lo.
+sed -i 's/^NotifyClamd/#NotifyClamd/' /etc/clamav/freshclam.conf
+
+# Usuário da sessão live (sem senha; o instalador o remove do sistema instalado)
+if ! id clone >/dev/null 2>&1; then
+    useradd -m -u 1000 -G wheel -s /bin/bash -c "Clone OS Live" clone
+    passwd -d clone
+    # Sem senha não há carteira do KDE nem tela de bloqueio: os navegadores
+    # guardam as credenciais da sessão live do jeito simples.
+    install -d -o clone -g clone /home/clone/.config
+    printf '[Daemon]\nAutolock=false\nLockOnResume=false\n' >/home/clone/.config/kscreenlockerrc
+    printf '[Wallet]\nEnabled=false\n' >/home/clone/.config/kwalletrc
+    printf -- '--password-store=basic\n' >>/home/clone/.config/brave-flags.conf
+    printf -- '--password-store=basic\n' >/home/clone/.config/claude-desktop-flags.conf
+    chown -R clone:clone /home/clone/.config
+fi
+
+# O AppArmor só liga de fato no sistema instalado, onde o kernel recebe "lsm=...apparmor".
+systemctl enable sddm.service NetworkManager.service bluetooth.service ufw.service \
+    power-profiles-daemon.service thermald.service paccache.timer apparmor.service
+systemctl --global enable cloneos-atualizacoes.timer
+# Medições extras em NvPCR do systemd: não são usadas pelo TPM + PIN e falham em vários chips TPM.
+systemctl mask systemd-tpm2-setup-early.service systemd-tpm2-setup.service \
+    systemd-pcrproduct.service systemd-pcrlogin@.service
+systemctl set-default graphical.target
+
+rm -f /usr/local/bin/cloneos-build-customize

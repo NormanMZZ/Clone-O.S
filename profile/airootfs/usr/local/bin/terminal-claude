@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Terminal Claude: o Claude Code numa janela com a cara do Claude.
+# Abre na pasta de trabalho ~/Clone; as pastas liberadas e o modo de permissão
+# ficam em ~/.claude/settings.json (definidos pelo Clone Welcome).
+#
+#   terminal-claude            abre a janela (ícone da área de trabalho, atalho Meta+C)
+#   terminal-claude [args]     dentro de um terminal: roda o Claude ali mesmo, com esses argumentos
+set -u
+
+share=/usr/share/cloneos/terminal-claude
+workspace="$HOME/Clone"
+clay=$'\e[38;2;217;119;87m'; cream=$'\e[38;2;236;234;227m'; muted=$'\e[38;2;156;153;143m'; bold=$'\e[1m'; off=$'\e[0m'
+
+mkdir -p "$workspace"
+[[ -e "$workspace/CLAUDE.md" ]] || cp /usr/share/cloneos/CLAUDE.md "$workspace/CLAUDE.md"
+
+in_window=0
+if [[ "${1:-}" == --janela ]]; then
+    in_window=1
+    shift
+elif [[ ! -t 0 || ! -t 1 ]]; then
+    exec alacritty --config-file "$share/alacritty.toml" --class terminal-claude \
+        --title "Terminal Claude" --working-directory "$workspace" -e "$0" --janela "$@"
+fi
+
+cd "$workspace" || exit 1
+
+printf '\n  %s%s✻%s  %s%sTerminal Claude%s\n' "$clay" "$bold" "$off" "$cream" "$bold" "$off"
+printf '     %sClaude Code no Clone OS · pasta de trabalho: ~/Clone%s\n\n' "$muted" "$off"
+printf '     %s/login%s entrar na conta   %s/help%s comandos   %s!%s comando do sistema   %sCtrl+C 2x%s sair\n\n' \
+    "$clay" "$muted" "$clay" "$muted" "$clay" "$muted" "$clay" "$off"
+
+if command -v claude >/dev/null; then
+    claude "$@"
+else
+    printf '  O Claude Code não está instalado. Instale com: %ssudo pacman -S claude-code%s\n' "$clay" "$off"
+fi
+
+# Ao sair do Claude, a janela continua como um terminal comum, com o mesmo visual.
+(( in_window )) && exec bash --rcfile "$share/bashrc" -i
+exit 0

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Pré-carrega na memória os programas mais usados, logo depois do login e com a
+# menor prioridade de disco (com o BFQ, a leitura só acontece quando o HD está livre).
+# Em HD, abrir o Brave ou o Claude pela primeira vez fica bem mais rápido.
+# Só roda no sistema instalado em disco rígido, e só enquanto sobra memória.
+set -u
+
+root_src="$(findmnt -nvo SOURCE /)" || exit 0
+[[ -b "$root_src" ]] || exit 0
+[[ "$(lsblk -nso ROTA "$root_src" 2>/dev/null | tail -n 1 | tr -d '[:space:]')" == 1 ]] || exit 0
+
+[[ "${1:-}" == --agora ]] || sleep 45
+renice -n 19 -p $$ >/dev/null
+ionice -c 3 -p $$
+
+free_mib() { awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo; }
+
+for target in /opt/brave-bin /usr/lib/claude-desktop /opt/claude-code /usr/bin/alacritty; do
+    [[ -e "$target" ]] || continue
+    (( $(free_mib) > 3000 )) || break
+    find "$target" -xdev -type f -size +8k -print0 2>/dev/null | xargs -0 -r cat >/dev/null 2>&1
+done
+exit 0

@@ -1,0 +1,18 @@
+# Clone OS: ajustes de disco. O notebook usa HD (disco rígido), onde o que mais
+# pesa é o tempo que a cabeça de leitura leva para ir de um ponto a outro do disco.
+# (69-: depois das regras 60- do systemd, que preenchem ID_BUS.)
+
+# HD: escalonador BFQ (atende primeiro o programa que você está usando) e
+# leitura antecipada maior (menos idas e vindas da cabeça de leitura).
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq", ATTR{queue/read_ahead_kb}="1024"
+
+# HD interno: sem estacionar a cabeça de leitura a cada poucos segundos, o que
+# causa pequenas travadas e desgasta o disco.
+ACTION=="add", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ENV{ID_BUS}=="ata", ATTR{queue/rotational}=="1", RUN+="/usr/bin/hdparm -B 254 /dev/%k"
+
+# Disco criptografado: a leitura antecipada que vale é a do dispositivo do LUKS.
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ATTR{queue/read_ahead_kb}="1024"
+
+# Se um dia o HD for trocado por um SSD, ele já fica com o escalonador certo.
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Visão de tarefas
+Comment=Todas as janelas abertas e as áreas de trabalho (tecla Windows + Tab)
+Exec=busctl --user call org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component invokeShortcut s Overview
+Icon=cloneos-visao-de-tarefas
+NoDisplay=true
+StartupNotify=false

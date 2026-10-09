@@ -1,0 +1,515 @@
+#!/usr/bin/env bash
+# clone-install: instala o Clone OS no notebook a partir do pendrive (modo live).
+# Copia a imagem do sistema (sem precisar de internet), cria o seu usuário e instala o GRUB.
+#
+# Pensado para HD (disco rígido):
+#   - o sistema fica numa partição própria no começo do disco, a região mais rápida
+#     do HD, com os arquivos do sistema perto uns dos outros (menos busca da cabeça);
+#   - /home ocupa o resto do disco; a swap é zram (na RAM), nunca no HD;
+#   - ext4 com noatime e commit de 30 s, e tabelas de inodes criadas
+#     já na formatação (nada de inicialização "preguiçosa" ocupando o HD depois);
+#   - criptografia LUKS2 opcional, recomendada para notebook.
+set -Eeuo pipefail
+
+readonly SRC=/run/archiso/airootfs
+readonly BOOTMNT=/run/archiso/bootmnt
+readonly MNT=/mnt/cloneos
+readonly LOG=/var/log/clone-install.log
+readonly KEYS=/run/cloneos-install
+
+bold=$'\e[1m'; blue=$'\e[38;2;23;147;209m'; clay=$'\e[38;2;217;119;87m'; red=$'\e[31m'; dim=$'\e[2m'; off=$'\e[0m'
+
+say()   { printf '\n%s==>%s %s%s%s\n' "$blue" "$off" "$bold" "$*" "$off"; }
+info()  { printf '    %s\n' "$*"; }
+warn()  { printf '%s  ! %s%s\n' "$clay" "$*" "$off"; }
+pause() { read -rp "Pressione Enter para fechar..." _ || true; }
+release() {
+    umount -R "$MNT" 2>/dev/null || true
+    cryptsetup close home 2>/dev/null || true
+    cryptsetup close root 2>/dev/null || true
+}
+die()   { printf '\n%sErro:%s %s\n' "$red" "$off" "$*" >&2; release; pause; exit 1; }
+trap 'die "falha na linha $LINENO (detalhes em $LOG)."' ERR
+trap 'rm -rf -- "$KEYS"' EXIT
+
+(( EUID == 0 )) || exec sudo "$0" "$@"
+[[ -d "$SRC/usr" ]] || die "o instalador só funciona a partir do pendrive do Clone OS (modo live)."
+
+clear 2>/dev/null || true
+cat <<EOF
+${blue}         /\\${off}
+${blue}        /  \\   ${clay}  /\\${off}
+${blue}       / /\\ \\ ${clay}  /  \\${off}      ${bold}Instalador do Clone OS${off}
+${blue}      / /  \\ \\${clay} / /\\ \\${off}     ${dim}0.3 · edição notebook · baseado no Arch Linux${off}
+${blue}     /_/    \\_${clay}/ /  \\ \\${off}
+${clay}              /_/    \\_\\${off}
+
+EOF
+
+# ---------------------------------------------------------------------------
+# Perguntas
+# ---------------------------------------------------------------------------
+
+firmware=bios
+[[ -d /sys/firmware/efi ]] && firmware=uefi
+info "Firmware detectado: ${bold}${firmware^^}${off}"
+[[ $firmware == uefi ]] || warn "o notebook iniciou o pendrive no modo antigo (BIOS/Legacy). Funciona, mas o recomendado é UEFI."
+
+live_disk=""
+if src_dev="$(findmnt -no SOURCE "$BOOTMNT" 2>/dev/null)"; then
+    live_disk="/dev/$(lsblk -no PKNAME "$src_dev" 2>/dev/null | head -n1)"
+fi
+
+mapfile -t disks < <(lsblk -dnpo NAME,TYPE,RO | awk '$2 == "disk" && $3 == "0" && $1 !~ /zram|loop/ { print $1 }' | grep -vxF "${live_disk:-none}" || true)
+(( ${#disks[@]} )) || die "nenhum disco encontrado. Se o notebook tiver Intel RST/RAID ligado na BIOS,
+       mude a opção do SATA para AHCI (veja o README) e tente de novo."
+
+say "Em qual disco instalar?"
+default=0
+for i in "${!disks[@]}"; do
+    d="${disks[i]}"
+    kind=SSD
+    [[ "$(lsblk -dno ROTA "$d" | tr -d ' ')" == 1 ]] && kind=HD
+    if [[ "$(lsblk -dno TRAN "$d" | tr -d ' ')" == usb ]]; then
+        kind="$kind/USB"
+    elif (( default == 0 )); then
+        default=$((i + 1))
+    fi
+    printf '    %s%d)%s %-14s %8s  %-7s %s\n' "$bold" $((i + 1)) "$off" "$d" \
+        "$(lsblk -dno SIZE "$d" | tr -d ' ')" "$kind" "$(lsblk -dno MODEL "$d" | xargs)"
+done
+(( default )) || default=1
+while :; do
+    read -rp "    Número do disco [$default]: " choice
+    choice="${choice:-$default}"
+    [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#disks[@]} )) && break
+    warn "opção inválida"
+done
+disk="${disks[choice - 1]}"
+size_gib=$(( $(lsblk -bdno SIZE "$disk") / 1024 / 1024 / 1024 ))
+(( size_gib >= 40 )) || die "o disco $disk tem ${size_gib} GiB; o Clone OS precisa de pelo menos 40 GiB."
+rotational=0
+[[ "$(lsblk -dno ROTA "$disk" | tr -d ' ')" == 1 ]] && rotational=1
+
+say "Sua conta"
+read -rp "    Seu nome: " fullname
+while :; do
+    read -rp "    Nome de usuário (minúsculas, sem espaço): " username
+    [[ "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ && "$username" != clone && "$username" != root ]] && break
+    warn "use só letras minúsculas, números, - e _ (começando por letra)"
+done
+while :; do
+    read -rsp "    Senha: " password; echo
+    read -rsp "    Repita a senha: " password2; echo
+    [[ -n "$password" && "$password" == "$password2" ]] && break
+    warn "as senhas não conferem (ou estão vazias)"
+done
+unset password2
+
+say "Sistema"
+read -rp "    Nome do computador [clone-notebook]: " hostname
+hostname="${hostname:-clone-notebook}"
+[[ "$hostname" =~ ^[a-zA-Z0-9-]{1,63}$ ]] || die "nome de computador inválido: $hostname"
+read -rp "    Fuso horário [America/Sao_Paulo]: " timezone
+timezone="${timezone:-America/Sao_Paulo}"
+[[ -f "/usr/share/zoneinfo/$timezone" ]] || die "fuso horário desconhecido: $timezone"
+info "Teclado:  1) ABNT2 (Brasil)   2) US internacional   3) US"
+read -rp "    Opção [1]: " kb
+case "${kb:-1}" in
+    2) keymap=us-acentos; xkb_layout=us; xkb_variant=intl ;;
+    3) keymap=us;         xkb_layout=us; xkb_variant="" ;;
+    *) keymap=br-abnt2;   xkb_layout=br; xkb_variant="" ;;
+esac
+
+say "Criptografia do disco"
+info "Com a criptografia, se o notebook for perdido ou roubado, ninguém lê os seus"
+info "arquivos sem a senha. Ela é pedida toda vez que o notebook liga."
+if grep -qw aes /proc/cpuinfo; then
+    info "Este processador tem aceleração AES: a perda de velocidade é desprezível."
+fi
+read -rp "    Criptografar o disco? [S/n] " answer
+encrypt=1
+[[ "${answer,,}" == n* ]] && encrypt=0
+ascii_only() { ! LC_ALL=C grep -q '[^ -~]' <<<"$1"; }
+if (( encrypt )); then
+    luks_password=""
+    read -rp "    Usar a mesma senha da sua conta para destravar o disco? [S/n] " answer
+    if [[ "${answer,,}" != n* ]]; then
+        if ! ascii_only "$password"; then
+            warn "a senha da conta tem acentos ou ç, que podem não sair iguais na tela de boot."
+            warn "Escolha uma senha só para o disco, sem acentos."
+        elif (( ${#password} < 8 )); then
+            warn "a senha da conta é curta para proteger o disco (mínimo de 8 caracteres)."
+            warn "Escolha uma senha só para o disco, mais longa."
+        else
+            luks_password="$password"
+        fi
+    fi
+    while [[ -z "$luks_password" ]]; do
+        read -rsp "    Senha do disco (8 caracteres ou mais, sem acentos): " p1; echo
+        read -rsp "    Repita a senha do disco: " p2; echo
+        if [[ -z "$p1" || "$p1" != "$p2" ]]; then
+            warn "as senhas não conferem (ou estão vazias)"
+        elif ! ascii_only "$p1"; then
+            warn "use só letras sem acento, números e símbolos"
+        elif (( ${#p1} < 8 )); then
+            warn "use pelo menos 8 caracteres"
+        else
+            luks_password="$p1"
+        fi
+    done
+    unset p1 p2
+    warn "Se esquecer a senha do disco, NÃO há como recuperar os arquivos."
+fi
+
+# Sistema no começo do disco (região mais rápida do HD); /home no resto.
+if (( size_gib >= 200 )); then root_gib=80
+elif (( size_gib >= 100 )); then root_gib=50
+else root_gib=0
+fi
+
+say "Resumo"
+info "Disco:      $disk (${size_gib} GiB, $( ((rotational)) && echo HD || echo SSD )) — ${red}${bold}TUDO nele será apagado, inclusive o Windows${off}"
+lsblk -no NAME,SIZE,FSTYPE,LABEL "$disk" | tail -n +2 | sed 's/^/                /'
+if (( root_gib )); then
+    info "Partições:  EFI 1 GiB · sistema ${root_gib} GiB (começo do disco) · seus arquivos (/home) no resto"
+else
+    info "Partições:  EFI 1 GiB · sistema e arquivos juntos no resto"
+fi
+info "Criptografia: $( ((encrypt)) && echo 'sim (LUKS2)' || echo 'não' )"
+info "Firmware:   ${firmware^^}"
+info "Usuário:    $username ($fullname)"
+info "Computador: $hostname · $timezone · teclado $keymap"
+echo
+read -rp "    Digite APAGAR para continuar: " confirm
+[[ "$confirm" == APAGAR ]] || { info "Instalação cancelada. Nada foi alterado."; pause; exit 0; }
+
+exec > >(tee -a "$LOG") 2>&1
+
+# ---------------------------------------------------------------------------
+# Disco
+# ---------------------------------------------------------------------------
+
+part() { if [[ "$1" =~ [0-9]$ ]]; then echo "${1}p$2"; else echo "$1$2"; fi; }
+
+say "Particionando $disk"
+release
+lsblk -lnpo NAME "$disk" | tail -n +2 | while read -r p; do
+    umount -f "$p" 2>/dev/null || true
+    swapoff "$p" 2>/dev/null || true
+done
+wipefs -af "$disk" >/dev/null
+{
+    echo "label: gpt"
+    if [[ $firmware == uefi ]]; then
+        echo 'size=1GiB, type=U, name="EFI"'
+    else
+        echo 'size=1MiB, type=21686148-6449-6E6F-744E-656564454649, name="BIOS"'
+        echo 'size=1GiB, type=L, name="boot"'
+    fi
+    if (( root_gib )); then
+        echo "size=${root_gib}GiB, type=L, name=\"CloneOS\""
+        echo 'type=L, name="Home"'
+    else
+        echo 'type=L, name="CloneOS"'
+    fi
+} | sfdisk --quiet --wipe always --wipe-partitions always "$disk"
+partprobe "$disk" 2>/dev/null || true
+udevadm settle
+
+n=1
+esp="" boot_part=""
+if [[ $firmware == uefi ]]; then
+    esp="$(part "$disk" $n)"; n=$((n + 1))
+else
+    n=$((n + 1)); boot_part="$(part "$disk" $n)"; n=$((n + 1))
+fi
+root_part="$(part "$disk" $n)"; n=$((n + 1))
+home_part=""
+(( root_gib )) && home_part="$(part "$disk" $n)"
+for p in $esp $boot_part $root_part $home_part; do
+    [[ -b "$p" ]] || die "a partição $p não apareceu."
+    wipefs -af "$p" >/dev/null
+done
+
+root_dev="$root_part"
+home_dev="$home_part"
+if (( encrypt )); then
+    say "Criptografando (LUKS2)"
+    install -d -m 700 "$KEYS"
+    printf '%s' "$luks_password" >"$KEYS/password"
+    unset luks_password
+    cryptsetup luksFormat --type luks2 --batch-mode --label CloneOS-cripto --key-file "$KEYS/password" "$root_part"
+    cryptsetup open --key-file "$KEYS/password" "$root_part" root
+    root_dev=/dev/mapper/root
+    if [[ -n "$home_part" ]]; then
+        # /home abre sozinho com uma chave guardada no sistema (que também é criptografado);
+        # a senha do disco fica como segunda chave, para emergências.
+        dd if=/dev/urandom of="$KEYS/home.key" bs=512 count=8 status=none
+        cryptsetup luksFormat --type luks2 --batch-mode --label Home-cripto --key-file "$KEYS/home.key" "$home_part"
+        cryptsetup luksAddKey --key-file "$KEYS/home.key" "$home_part" "$KEYS/password"
+        cryptsetup open --key-file "$KEYS/home.key" "$home_part" home
+        home_dev=/dev/mapper/home
+    fi
+fi
+
+say "Formatando (as tabelas do ext4 são criadas agora, leva um ou dois minutos)"
+mkext4() { mkfs.ext4 -q -F -E lazy_itable_init=0,lazy_journal_init=0 "$@"; }
+mkext4 -L CloneOS "$root_dev"
+[[ -n "$home_dev" ]] && mkext4 -L Home -m 1 -i 65536 "$home_dev"
+if [[ $firmware == uefi ]]; then
+    mkfs.fat -F 32 -n EFI "$esp" >/dev/null
+else
+    mkfs.ext4 -q -F -L boot "$boot_part"
+fi
+udevadm settle
+# Tipos explícitos: logo depois de formatar, a detecção automática do mount pode errar.
+# /home não executa programas setuid nem aceita arquivos de dispositivo (nosuid, nodev).
+# No UEFI, a partição EFI fica em /efi e só guarda o carregador e as imagens de boot
+# assinadas; o kernel e o resto de /boot ficam dentro do disco criptografado.
+mount --mkdir -t ext4 -o noatime,commit=30 "$root_dev" "$MNT"
+[[ -n "$home_dev" ]] && mount --mkdir -t ext4 -o noatime,commit=30,nosuid,nodev "$home_dev" "$MNT/home"
+if [[ $firmware == uefi ]]; then
+    mount --mkdir -t vfat -o fmask=0077,dmask=0077,noexec,nosuid,nodev "$esp" "$MNT/efi"
+else
+    mount --mkdir -t ext4 -o nosuid,nodev "$boot_part" "$MNT/boot"
+fi
+
+# ---------------------------------------------------------------------------
+# Cópia do sistema
+# ---------------------------------------------------------------------------
+
+say "Copiando o sistema (de 10 a 20 minutos no HD)"
+rsync -aAXH --info=progress2 --exclude=/home/clone "$SRC/" "$MNT/"
+cp /etc/pacman.d/mirrorlist "$MNT/etc/pacman.d/mirrorlist"
+
+in_target() { arch-chroot "$MNT" "$@"; }
+
+say "Removendo o que é exclusivo do modo live"
+rm -rf -- \
+    "$MNT"/etc/sddm.conf.d/20-cloneos-live.conf \
+    "$MNT"/etc/sudoers.d/20-cloneos-live \
+    "$MNT"/usr/share/applications/clone-install.desktop \
+    "$MNT"/usr/local/bin/clone-install \
+    "$MNT"/etc/mkinitcpio.conf.d/archiso.conf \
+    "$MNT"/etc/mkinitcpio.d/*.preset \
+    "$MNT"/etc/systemd/system/{choose-mirror,livecd-talk,livecd-alsa-unmuter,pacman-init}.service \
+    "$MNT"/etc/systemd/system/etc-pacman.d-gnupg.mount \
+    "$MNT"/etc/systemd/system-generators/systemd-gpt-auto-generator \
+    "$MNT"/etc/systemd/journald.conf.d/volatile-storage.conf \
+    "$MNT"/etc/systemd/logind.conf.d/do-not-suspend.conf \
+    "$MNT"/etc/systemd/resolved.conf.d/archiso.conf \
+    "$MNT"/etc/ssh/sshd_config.d/10-archiso.conf \
+    "$MNT"/usr/local/bin/{choose-mirror,Installation_guide,livecd-sound} \
+    "$MNT"/usr/local/share/livecd-sound \
+    "$MNT"/var/lib/sddm/state.conf \
+    "$MNT"/root/.automated_script.sh "$MNT"/root/.zlogin
+in_target userdel clone 2>/dev/null || true
+
+say "Removendo o que só serve no pendrive (ferramentas de resgate e de máquina virtual)"
+# A ISO oficial do Arch traz ferramentas de recuperação e de rede que não fazem sentido
+# no notebook instalado: saem do sistema para economizar disco e manter só o essencial.
+extras=(clonezilla partclone partimage fsarchiver testdisk ddrescue gpart nmap tcpdump irssi lynx lftp mc
+        darkhttpd wvdial pptpclient xl2tpd vpnc openconnect openvpn linux-atm ndisc6 nbd open-iscsi nfs-utils
+        mkinitcpio-archiso mkinitcpio-nfs-utils archinstall livecd-sounds memtest86+ memtest86+-efi edk2-shell
+        refind syslinux b43-fwcutter bcachefs-tools nilfs-utils jfsutils xfsprogs f2fs-tools mmc-utils sdparm
+        sg3_utils gpm squashfs-tools fatresize dmraid mdadm espeakup brltty tpm2-tools bind ldns dhcpcd iwd
+        wireless_tools vim screen openpgp-card-tools)
+if [[ "$(systemd-detect-virt 2>/dev/null || true)" == none ]]; then
+    extras+=(open-vm-tools hyperv qemu-guest-agent virtualbox-guest-utils-nox)
+fi
+# No UEFI o carregador é o systemd-boot assinado; o GRUB só fica para BIOS antiga.
+[[ $firmware == uefi ]] && extras+=(grub)
+mapfile -t installed < <(in_target pacman -Qq "${extras[@]}" 2>/dev/null || true)
+if (( ${#installed[@]} )) && ! in_target pacman -Rns --noconfirm "${installed[@]}" >>"$LOG" 2>&1; then
+    for pkg in "${installed[@]}"; do
+        in_target pacman -Rns --noconfirm "$pkg" >>"$LOG" 2>&1 || true
+    done
+fi
+in_target find /etc/systemd/system -xtype l -delete
+
+# ---------------------------------------------------------------------------
+# Configuração
+# ---------------------------------------------------------------------------
+
+say "Configurando o sistema"
+# A zram do modo live aparece como swap ativa; no sistema instalado ela é criada a cada boot.
+genfstab -U "$MNT" | awk '/^#/ { c = c $0 "\n"; next } $3 == "swap" { c = ""; next } { printf "%s%s\n", c, $0; c = "" }' \
+    >"$MNT/etc/fstab"
+echo "$hostname" >"$MNT/etc/hostname"
+printf '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t%s.localdomain\t%s\n' "$hostname" "$hostname" >"$MNT/etc/hosts"
+ln -sf "/usr/share/zoneinfo/$timezone" "$MNT/etc/localtime"
+printf 'LANG=pt_BR.UTF-8\n' >"$MNT/etc/locale.conf"
+printf 'KEYMAP=%s\n' "$keymap" >"$MNT/etc/vconsole.conf"
+cat >"$MNT/etc/X11/xorg.conf.d/00-keyboard.conf" <<EOF
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbLayout" "$xkb_layout"
+    Option "XkbVariant" "$xkb_variant"
+EndSection
+EOF
+printf '[Layout]\nLayoutList=%s\nVariantList=%s\nUse=true\n' "$xkb_layout" "$xkb_variant" >"$MNT/etc/xdg/kxkbrc"
+
+if [[ -f "$KEYS/home.key" ]]; then
+    install -d -m 700 "$MNT/etc/cryptsetup-keys.d"
+    install -m 400 "$KEYS/home.key" "$MNT/etc/cryptsetup-keys.d/home.key"
+    printf 'home\tUUID=%s\t/etc/cryptsetup-keys.d/home.key\tluks\n' \
+        "$(blkid -s UUID -o value "$home_part")" >>"$MNT/etc/crypttab"
+fi
+
+cat >"$MNT/etc/xdg/reflector/reflector.conf" <<'EOF'
+# Clone OS: atualiza a lista de espelhos do pacman toda semana (reflector.timer).
+--save /etc/pacman.d/mirrorlist
+--protocol https
+--country BR,US
+--latest 10
+--sort rate
+EOF
+
+# Linha de comando do kernel: onde está o sistema, a tela de boot e as proteções do kernel.
+# lsm=...apparmor liga o AppArmor; lockdown=integrity impede que até o root altere o kernel
+# em execução; o resto são endurecimentos da página Security da wiki do Arch, sem custo de RAM.
+luks_args=""
+(( encrypt )) && luks_args="rd.luks.name=$(blkid -s UUID -o value "$root_part")=root"
+boot_ui="quiet splash loglevel=3 rd.udev.log_level=3 vt.global_cursor_default=0"
+hardening="lsm=landlock,lockdown,yama,integrity,apparmor,bpf lockdown=integrity slab_nomerge"
+hardening+=" page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none debugfs=off"
+# Depois de um desligamento forçado (bateria acabou, botão segurado), o disco é reparado
+# sozinho no boot, como o Windows faz, em vez de parar no modo de emergência.
+boot_ui+=" fsck.repair=yes"
+# As medições extras em NvPCR do systemd (não usadas pelo desbloqueio com TPM + PIN) falham em
+# vários chips TPM e, ao falhar, trocam a tela de boot pelo modo texto. O resto do TPM segue igual.
+boot_ui+=" rd.systemd.mask=systemd-tpm2-setup-early.service"
+
+say "Gerando as imagens de boot (kernel atual e kernel LTS de reserva)"
+cat >"$MNT/etc/mkinitcpio.conf.d/cloneos.conf" <<'EOF'
+# Clone OS: initramfs com systemd, tela de boot gráfica (plymouth: logo do fabricante,
+# como no Windows) e suporte a disco criptografado (sd-encrypt; senha ou TPM + PIN na mesma tela).
+HOOKS=(base systemd plymouth keyboard autodetect microcode modconf kms sd-vconsole block sd-encrypt filesystems fsck)
+EOF
+if [[ $firmware == uefi ]]; then
+    if (( encrypt )); then
+        root_args="$luks_args root=/dev/mapper/root"
+    else
+        root_args="root=UUID=$(blkid -s UUID -o value "$root_dev")"
+    fi
+    install -d "$MNT/etc/kernel" "$MNT/efi/EFI/Linux"
+    printf '%s rw %s %s\n' "$root_args" "$boot_ui" "$hardening" >"$MNT/etc/kernel/cmdline"
+fi
+kernels=0
+for kdir in "$MNT"/usr/lib/modules/*/; do
+    [[ -f "$kdir/pkgbase" && -f "$kdir/vmlinuz" ]] || continue
+    pkgbase="$(<"$kdir/pkgbase")"
+    install -Dm644 "$kdir/vmlinuz" "$MNT/boot/vmlinuz-$pkgbase"
+    if [[ $firmware == uefi ]]; then
+        # Imagem de boot unificada (kernel + initramfs + linha de comando num arquivo só),
+        # assinada para a Inicialização Segura: ninguém troca uma parte sem quebrar a assinatura.
+        cat >"$MNT/etc/mkinitcpio.d/$pkgbase.preset" <<EOF
+# mkinitcpio preset do Clone OS para o kernel '$pkgbase'
+ALL_kver="/boot/vmlinuz-$pkgbase"
+PRESETS=('default')
+default_uki="/efi/EFI/Linux/cloneos-$pkgbase.efi"
+EOF
+    else
+        sed "s|%PKGBASE%|$pkgbase|g" "$MNT/usr/share/mkinitcpio/hook.preset" >"$MNT/etc/mkinitcpio.d/$pkgbase.preset"
+    fi
+    kernels=$((kernels + 1))
+done
+(( kernels )) || die "nenhum kernel encontrado na imagem."
+if [[ $firmware == uefi ]]; then
+    say "Criando as chaves da Inicialização Segura (ficam dentro do disco criptografado)"
+    in_target sbctl create-keys
+fi
+# Tela de boot do Clone OS: logo do fabricante do notebook (como no Windows) e o nome do
+# Clone OS embaixo, no lugar do logo do Arch.
+in_target plymouth-set-default-theme cloneos >>"$LOG" 2>&1 || warn "tema da tela de boot não aplicado"
+# O hook "microcode" embute o microcódigo da Intel (correções de segurança do processador);
+# no UEFI, o sbctl assina cada imagem assim que o mkinitcpio termina de gerá-la.
+in_target mkinitcpio -P
+
+say "Criando o usuário $username"
+in_target useradd -m -G wheel -s /bin/bash -c "$fullname" "$username"
+printf '%s:%s\n' "$username" "$password" | in_target chpasswd
+unset password
+in_target passwd -l root >/dev/null
+if (( encrypt )); then
+    # A conta root fica bloqueada; se um dia o boot parar no modo de recuperação, o shell abre
+    # sem a senha do root. Só chega nele quem já digitou a senha do disco.
+    for unit in emergency rescue; do
+        install -d "$MNT/etc/systemd/system/$unit.service.d"
+        printf '[Service]\nEnvironment=SYSTEMD_SULOGIN_FORCE=1\n' >"$MNT/etc/systemd/system/$unit.service.d/cloneos.conf"
+    done
+fi
+
+say "Chaves do pacman (verificação de assinatura dos pacotes)"
+in_target pacman-key --init
+in_target pacman-key --populate archlinux
+
+say "Ativando os serviços"
+services=(sddm.service NetworkManager.service bluetooth.service ufw.service power-profiles-daemon.service
+          systemd-timesyncd.service paccache.timer reflector.timer apparmor.service clamav-freshclam-once.timer
+          switcheroo-control.service)
+[[ $firmware == uefi ]] && services+=(systemd-boot-update.service)
+grep -q GenuineIntel /proc/cpuinfo && services+=(thermald.service)
+(( rotational )) || services+=(fstrim.timer)
+in_target systemctl enable "${services[@]}"
+# Sem modem 4G no notebook, o ModemManager só ocuparia memória.
+if ! mmcli -L 2>/dev/null | grep -q '/Modem/'; then
+    in_target systemctl disable ModemManager.service >>"$LOG" 2>&1 || true
+fi
+
+if [[ $firmware == uefi ]]; then
+    say "Instalando o carregador de boot assinado (systemd-boot)"
+    # O carregador é assinado com as chaves do Clone OS; o bootctl copia a versão .signed,
+    # e o sbctl a reassina sozinho a cada atualização do systemd.
+    in_target sbctl sign -s -o /usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed \
+        /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+    if ! in_target bootctl install --esp-path=/efi >>"$LOG" 2>&1; then
+        warn "não foi possível gravar a entrada de boot na NVRAM; usando o caminho padrão"
+        in_target bootctl install --esp-path=/efi --no-variables
+    fi
+    # Como no Windows: sem menu na tela (Espaço segurado ao ligar mostra o menu, com o
+    # kernel LTS de reserva) e sem edição da linha de comando do kernel na hora do boot.
+    cat >"$MNT/efi/loader/loader.conf" <<'EOF'
+default cloneos-linux.efi
+timeout 0
+console-mode keep
+editor no
+EOF
+    in_target sbctl verify >>"$LOG" 2>&1 || true
+else
+    say "Instalando o carregador de boot (GRUB)"
+    grub_set() {
+        if grep -q "^#\?$1=" "$MNT/etc/default/grub"; then
+            sed -i "s|^#\?$1=.*|$1=$2|" "$MNT/etc/default/grub"
+        else
+            printf '%s=%s\n' "$1" "$2" >>"$MNT/etc/default/grub"
+        fi
+    }
+    grub_set GRUB_DISTRIBUTOR '"Clone OS"'
+    grub_set GRUB_TIMEOUT 2
+    grub_set GRUB_TIMEOUT_STYLE hidden
+    grub_set GRUB_CMDLINE_LINUX_DEFAULT "\"$boot_ui\""
+    grub_set GRUB_CMDLINE_LINUX "\"$luks_args $hardening\""
+    grub_set GRUB_DISABLE_SUBMENU y
+    in_target grub-install --target=i386-pc "$disk"
+    in_target grub-mkconfig -o /boot/grub/grub.cfg
+fi
+
+boot_mnt="$MNT/boot"
+[[ $firmware == uefi ]] && boot_mnt="$MNT/efi"
+used_mib=$(( $(df --output=used -BM "$MNT" | tail -n1 | tr -dc 0-9) + $(df --output=used -BM "$boot_mnt" | tail -n1 | tr -dc 0-9) ))
+cp "$LOG" "$MNT/var/log/clone-install.log" 2>/dev/null || true
+sync
+release
+
+say "Clone OS instalado!"
+info "Espaço ocupado pelo sistema: $(awk -v m="$used_mib" 'BEGIN { printf "%.1f GB", m / 1024 }')"
+info "Desligue o notebook, tire o pendrive e ligue de novo."
+(( encrypt )) && info "Quando aparecer o logo do notebook, digite a senha do disco e tecle Enter."
+info "No primeiro login, o Clone Welcome vai ajudar a conectar o Claude."
+echo
+read -rp "    Reiniciar agora? [s/N] " reboot_now
+[[ "${reboot_now,,}" == s* ]] && systemctl reboot
+exit 0

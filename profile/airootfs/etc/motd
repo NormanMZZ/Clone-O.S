@@ -1,0 +1,8 @@
+
+  Clone OS 0.3 (notebook) · baseado no Arch Linux
+
+  Claude no terminal ......... terminal-claude   (ou Windows + C)
+  Configurações .............. clone-configuracoes   (ou Windows + I)
+  Atualizar o sistema ........ clone-update
+  Personalização ............. clonectl --help
+

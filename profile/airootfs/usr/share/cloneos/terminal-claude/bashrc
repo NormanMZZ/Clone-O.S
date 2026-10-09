@@ -1,0 +1,6 @@
+# Terminal Claude: o shell que fica aberto depois que você sai do Claude.
+[[ -f /etc/bash.bashrc ]] && . /etc/bash.bashrc
+[[ -f ~/.bashrc ]] && . ~/.bashrc
+
+PS1='\[\e[38;2;217;119;87m\]✻\[\e[0m\] \[\e[38;2;156;153;143m\]\w\[\e[0m\] \[\e[38;2;217;119;87m\]❯\[\e[0m\] '
+printf '\n  \e[38;2;156;153;143mVocê saiu do Claude. Este é o terminal do sistema; digite \e[38;2;217;119;87mclaude\e[38;2;156;153;143m para voltar.\e[0m\n\n'

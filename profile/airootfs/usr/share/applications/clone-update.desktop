@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Atualizar o Clone OS
+GenericName=Atualizações do sistema
+Comment=Atualiza o Arch Linux, o Brave e o Claude, e confere falhas de segurança
+Exec=/usr/local/bin/clone-update
+Icon=system-software-update
+Terminal=false
+Categories=System;
+Keywords=atualizar;update;pacman;segurança;

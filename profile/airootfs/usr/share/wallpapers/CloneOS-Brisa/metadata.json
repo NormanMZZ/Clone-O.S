@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Clone OS"
+            }
+        ],
+        "Id": "CloneOS-Brisa",
+        "License": "CC-BY-SA-4.0",
+        "Name": "Clone Brisa"
+    }
+}

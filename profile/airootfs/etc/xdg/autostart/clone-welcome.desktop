@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Clone Welcome
+Exec=/usr/local/bin/clone-welcome --autostart
+Icon=cloneos
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

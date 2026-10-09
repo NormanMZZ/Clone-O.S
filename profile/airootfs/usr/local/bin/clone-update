@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# clone-update: atualiza o Clone OS inteiro. No Arch, manter o sistema em dia é a
+# principal defesa contra falhas de segurança.
+#   1. pacotes oficiais do Arch (pacman, que confere a assinatura de cada pacote)
+#   2. Brave, app do Claude, Claude Code e yay (AUR, pelo yay), só se a receita ainda
+#      baixar os arquivos dos sites oficiais
+#   3. falhas de segurança conhecidas que ainda estejam pendentes (arch-audit)
+set -uo pipefail
+
+if [[ ! -t 0 || ! -t 1 ]]; then
+    exec konsole -p tabtitle="Atualizar o Clone OS" -e "$0" "$@"
+fi
+
+blue=$'\e[38;2;23;147;209m'; clay=$'\e[38;2;217;119;87m'; bold=$'\e[1m'; off=$'\e[0m'
+say()   { printf '\n%s==>%s %s%s%s\n' "$blue" "$off" "$bold" "$*" "$off"; }
+pause() { echo; read -rp "Pressione Enter para fechar..." _ || true; }
+
+(( EUID != 0 )) || { echo "Rode como seu usuário, sem sudo (a senha é pedida quando preciso)."; pause; exit 1; }
+running_kernel="$(uname -r)"
+
+say "1/3  Pacotes do Arch Linux"
+if ! sudo pacman -Syu; then
+    echo "${clay}A atualização dos pacotes do Arch não terminou.${off} Veja as mensagens acima."
+    pause
+    exit 1
+fi
+
+say "2/3  Brave, app do Claude e Claude Code"
+# Antes de instalar, confere se cada receita do AUR ainda baixa os arquivos dos sites oficiais.
+# Uma receita adulterada que aponte para outro lugar não é instalada.
+declare -A official=(
+    [brave-bin]="https://github.com/brave/"
+    [claude-desktop]="https://downloads.claude.ai/"
+    [claude-code]="https://downloads.claude.ai/ https://code.claude.com/"
+    [yay-bin]="https://github.com/Jguer/yay/"
+)
+trusted=()
+while read -r pkg _; do
+    [[ -n "$pkg" ]] || continue
+    if [[ -z "${official[$pkg]:-}" ]]; then
+        trusted+=("$pkg")
+        continue
+    fi
+    if ! srcinfo="$(curl -fsSL "https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=$pkg")"; then
+        echo "${clay}Não foi possível conferir a receita de $pkg; ele fica para a próxima.${off}"
+        continue
+    fi
+    bad=""
+    while read -r url; do
+        allowed=0
+        for prefix in ${official[$pkg]}; do
+            [[ "$url" == "$prefix"* ]] && allowed=1
+        done
+        (( allowed )) || bad+=" $url"
+    done < <(sed -n 's/^[[:space:]]*source\(_x86_64\)\{0,1\} = //p' <<<"$srcinfo" | sed 's/^[^:]*::https:/https:/' | grep -E '^https?://')
+    if [[ -n "$bad" ]]; then
+        echo "${clay}${bold}$pkg NÃO foi atualizado:${off}${clay} a receita aponta para fora do site oficial:$bad${off}"
+    else
+        trusted+=("$pkg")
+    fi
+done < <(yay -Qua 2>/dev/null)
+if (( ${#trusted[@]} )); then
+    yay -S --needed --answerclean All --answerdiff None --answeredit None --removemake "${trusted[@]}" \
+        || echo "${clay}Não foi possível atualizar os pacotes do AUR agora.${off} Tente de novo mais tarde."
+else
+    echo "Nada para atualizar."
+fi
+
+say "3/3  Falhas de segurança conhecidas"
+pending="$(arch-audit --upgradable 2>/dev/null || true)"
+if [[ -n "$pending" ]]; then
+    echo "$pending"
+    echo "Essas correções ainda não chegaram aos repositórios; rode de novo em alguns dias."
+else
+    echo "Nenhuma correção de segurança pendente."
+fi
+
+if [[ ! -d "/usr/lib/modules/$running_kernel" ]]; then
+    echo
+    echo "${clay}${bold}O kernel foi atualizado: reinicie o notebook para usar a versão nova.${off}"
+fi
+pause

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Instalar Clone OS
+Comment=Instala o sistema no disco
+Exec=konsole -p tabtitle=Instalador -e sudo /usr/local/bin/clone-install
+Icon=cloneos-install
+Categories=System;

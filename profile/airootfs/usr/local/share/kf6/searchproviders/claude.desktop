@@ -1,0 +1,6 @@
+[Desktop Entry]
+Charset=
+Hidden=false
+Keys=cl,claude
+Name=Claude
+Query=https://claude.ai/new?q=\{@}

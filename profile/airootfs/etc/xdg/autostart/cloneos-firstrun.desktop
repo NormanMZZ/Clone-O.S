@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Clone OS: primeira configuração
+Exec=/usr/local/bin/cloneos-firstrun
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

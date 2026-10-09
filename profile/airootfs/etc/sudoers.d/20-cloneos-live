@@ -1,0 +1,2 @@
+# Somente na ISO live. O instalador remove este arquivo.
+clone ALL=(ALL:ALL) NOPASSWD: ALL

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Clone Welcome
+GenericName=Boas-vindas e configuração do Claude
+Comment=Conectar o Claude, permissões e aparência
+Exec=/usr/local/bin/clone-welcome
+Icon=cloneos
+Categories=System;Settings;
+Keywords=clone;claude;boas-vindas;welcome;tema;permissões;

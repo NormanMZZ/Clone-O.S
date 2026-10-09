@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Identidade do sistema. Roda na geração da ISO e de novo sempre que o pacote
+# "filesystem" do Arch é atualizado (ele sobrescreve o os-release).
+set -euo pipefail
+
+cat >/usr/lib/os-release <<'EOF'
+NAME="Clone OS"
+PRETTY_NAME="Clone OS 0.3 (notebook)"
+ID=cloneos
+ID_LIKE=arch
+BUILD_ID=rolling
+VERSION="0.3 (notebook)"
+VERSION_ID=0.3
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://archlinux.org/"
+DOCUMENTATION_URL="https://wiki.archlinux.org/"
+SUPPORT_URL="https://bbs.archlinux.org/"
+BUG_REPORT_URL="https://gitlab.archlinux.org/groups/archlinux/-/issues"
+LOGO=cloneos
+EOF
+
+printf 'Clone OS \\r (\\l)\n\n' >/etc/issue

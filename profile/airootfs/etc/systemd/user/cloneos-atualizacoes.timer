@@ -1,0 +1,9 @@
+[Unit]
+Description=Clone OS: verifica atualizações uma vez por dia
+
+[Timer]
+OnStartupSec=20min
+OnUnitActiveSec=1d
+
+[Install]
+WantedBy=timers.target

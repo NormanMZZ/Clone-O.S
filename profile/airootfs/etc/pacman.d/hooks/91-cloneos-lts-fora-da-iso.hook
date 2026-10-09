@@ -1,0 +1,14 @@
+# remove from airootfs!
+# O kernel LTS é a reserva do sistema instalado (o clone-install o instala a partir de
+# /usr/lib/modules). No menu do pendrive ele não é usado: sem isto, a ISO levaria
+# uns 500 MB a mais de kernel e initramfs.
+
+[Trigger]
+Operation = Install
+Type = Package
+Target = linux-lts
+
+[Action]
+Description = Deixando o kernel LTS fora do menu do pendrive...
+When = PostTransaction
+Exec = /bin/sh -c 'rm -f /boot/vmlinuz-linux-lts /boot/initramfs-linux-lts*.img'

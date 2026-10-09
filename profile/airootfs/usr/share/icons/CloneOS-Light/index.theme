@@ -1,0 +1,12 @@
+[Icon Theme]
+Name=Clone OS (claro)
+Comment=Breeze com a marca do Clone OS
+Inherits=breeze,hicolor
+Directories=scalable/places
+
+[scalable/places]
+Size=64
+MinSize=8
+MaxSize=512
+Type=Scalable
+Context=Places

@@ -1,0 +1,5 @@
+# ISOs e imagens geradas pelo build (grandes demais para o GitHub)
+out/
+*.iso
+*.img
+__pycache__/

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Nomes no estilo do Windows 11 para os aplicativos do KDE no menu Iniciar.
+# Grava cópias dos atalhos em /usr/local/share/applications, que têm prioridade
+# sobre /usr/share; só a linha Name= muda. Roda de novo (hook do pacman) sempre
+# que um desses pacotes é instalado ou atualizado, para a cópia não ficar velha.
+set -euo pipefail
+
+declare -A names=(
+    [org.kde.dolphin]="Explorador de Arquivos"
+    [org.kde.kwrite]="Bloco de Notas"
+    [org.kde.kate]="Editor de Código (Kate)"
+    [org.kde.kcalc]="Calculadora"
+    [org.kde.gwenview]="Fotos"
+    [org.kde.haruna]="Reprodutor de Mídia"
+    [org.kde.spectacle]="Ferramenta de Captura"
+    [org.kde.kolourpaint]="Paint"
+    [org.kde.kamoso]="Câmera"
+    [org.kde.konsole]="Terminal"
+    [org.kde.plasma-systemmonitor]="Gerenciador de Tarefas"
+    [org.kde.okular]="Leitor de PDF"
+    [org.kde.ark]="Arquivos Compactados"
+    [org.kde.kinfocenter]="Informações do Sistema"
+    [systemsettings]="Configurações Avançadas"
+)
+
+dest=/usr/local/share/applications
+mkdir -p "$dest"
+for id in "${!names[@]}"; do
+    src="/usr/share/applications/$id.desktop"
+    if [[ ! -f "$src" ]]; then
+        rm -f "$dest/$id.desktop"
+        continue
+    fi
+    awk -v name="${names[$id]}" '
+        /^\[/ { section = $0 }
+        section == "[Desktop Entry]" && /^Name(\[[^]]*\])?=/ {
+            if (!done) { print "Name=" name; done = 1 }
+            next
+        }
+        { print }
+    ' "$src" >"$dest/$id.desktop"
+done

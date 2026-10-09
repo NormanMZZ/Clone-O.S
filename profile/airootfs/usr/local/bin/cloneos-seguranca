@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# cloneos-seguranca: as proteções de boot do Clone OS, no estilo do Windows 11.
+#
+#   cloneos-seguranca status        situação de cada proteção, em JSON (não precisa de senha)
+#   cloneos-seguranca secure-boot   cadastra as chaves do Clone OS no firmware (Inicialização Segura)
+#   cloneos-seguranca tpm           desbloqueio do disco pelo chip TPM + PIN, como o BitLocker
+#   cloneos-seguranca tpm-off       volta a pedir só a senha do disco
+#
+# A senha do disco escolhida na instalação continua valendo sempre, como chave de recuperação.
+set -uo pipefail
+
+readonly EFIVARS=/sys/firmware/efi/efivars
+readonly GLOBAL_GUID=8be4df61-93ca-11d2-aa0d-00e098032b8c
+readonly LUKS_DEV=/dev/disk/by-label/CloneOS-cripto
+readonly STATE_DIR=/etc/cloneos
+
+bold=$'\e[1m'; clay=$'\e[38;2;217;119;87m'; green=$'\e[38;2;60;203;138m'; off=$'\e[0m'
+die()  { printf '\n%s%s%s\n' "$clay" "$*" "$off" >&2; exit 1; }
+ok()   { printf '\n%s%s%s\n' "$green" "$*" "$off"; }
+need_root() { (( EUID == 0 )) || exec sudo "$0" "$@"; }
+
+# Valor (0 ou 1) de uma variável EFI global; os 4 primeiros bytes são atributos.
+efi_flag() {
+    local file="$EFIVARS/$1-$GLOBAL_GUID"
+    if [[ -r "$file" ]]; then
+        od -An -t u1 -j 4 -N 1 "$file" | tr -d ' \n'
+    else
+        printf '%s' -1
+    fi
+}
+
+json_bool() { if "$@"; then printf true; else printf false; fi; }
+
+cmd_status() {
+    local lockdown av_updated
+    lockdown="$(sed -n 's/.*\[\(.*\)\].*/\1/p' /sys/kernel/security/lockdown 2>/dev/null)"
+    av_updated="$(stat -c %Y /var/lib/clamav/daily.c[lv]d 2>/dev/null | head -n1)"
+    printf '{"uefi": %s, "secure_boot": %s, "setup_mode": %s, "tpm2": %s, "tpm_unlock": %s, ' \
+        "$(json_bool test -d /sys/firmware/efi)" \
+        "$(json_bool test "$(efi_flag SecureBoot)" = 1)" \
+        "$(json_bool test "$(efi_flag SetupMode)" = 1)" \
+        "$(json_bool test "$(cat /sys/class/tpm/tpm0/tpm_version_major 2>/dev/null)" = 2)" \
+        "$(json_bool test -e "$STATE_DIR/tpm-ativo")"
+    printf '"encrypted": %s, "apparmor": %s, "lockdown": "%s", "firewall": %s, "antivirus_updated": %s}\n' \
+        "$(json_bool sh -c 'lsblk -nro TYPE | grep -qx crypt')" \
+        "$(json_bool test "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = Y)" \
+        "${lockdown:-none}" \
+        "$(json_bool systemctl is-active -q ufw.service)" \
+        "${av_updated:-0}"
+}
+
+cmd_secure_boot() {
+    need_root secure-boot
+    [[ -d /sys/firmware/efi ]] || die "Este notebook iniciou no modo BIOS antigo; a Inicialização Segura precisa de UEFI."
+    if [[ "$(efi_flag SecureBoot)" == 1 ]]; then
+        ok "A Inicialização Segura já está ativada."
+        return 0
+    fi
+    [[ -d /var/lib/sbctl/keys || -d /usr/share/secureboot/keys ]] \
+        || die "As chaves do Clone OS não existem (o sistema foi instalado sem boot assinado)."
+    echo "Conferindo se o carregador e as imagens de boot estão assinados..."
+    sbctl sign-all >/dev/null 2>&1 || true
+    if sbctl verify 2>/dev/null | grep -q 'is not signed'; then
+        sbctl verify
+        die "Há arquivos de boot sem assinatura (lista acima). Rode 'sudo mkinitcpio -P' e tente de novo."
+    fi
+    if [[ "$(efi_flag SetupMode)" != 1 ]]; then
+        cat <<EOF
+
+${bold}O firmware ainda não está pronto para receber as chaves do Clone OS.${off}
+Na BIOS da Lenovo (aperte F2 ao ligar; em alguns modelos, Fn + F2):
+
+  1. Aba ${bold}Security${off} → ${bold}Secure Boot${off} → ${bold}Reset to Setup Mode${off}
+     (ou ${bold}Clear All Secure Boot Keys${off}) → ${bold}Yes${off}.
+  2. Se perguntar, deixe o ${bold}Secure Boot${off} em ${bold}Disabled${off} por enquanto.
+  3. ${bold}F10${off} para salvar e sair. O Clone OS liga normalmente.
+
+Depois, volte a Configurações → Privacidade e segurança → Inicialização Segura → Ativar.
+EOF
+        return 2
+    fi
+    echo "Cadastrando as chaves do Clone OS (e as da Microsoft, para placas e firmwares que dependem delas)..."
+    sbctl enroll-keys --microsoft || die "O firmware recusou as chaves. Nada foi alterado no boot."
+    cat <<EOF
+${green}Chaves cadastradas.${off} Falta um passo na BIOS:
+
+  1. Reinicie e aperte ${bold}F2${off} (ou Fn + F2).
+  2. Aba ${bold}Security${off} → ${bold}Secure Boot${off} → ${bold}Enabled${off}.
+  3. ${bold}F10${off} para salvar e sair.
+
+A partir daí, o notebook só inicia um sistema assinado pelo Clone OS (ou pela Microsoft).
+Depois disso, você pode ativar o desbloqueio do disco com TPM + PIN.
+EOF
+}
+
+cmd_tpm() {
+    need_root tpm
+    [[ -e "$LUKS_DEV" ]] || die "O disco não foi criptografado na instalação do Clone OS."
+    [[ -f /etc/kernel/cmdline ]] || die "Este sistema usa o boot antigo (BIOS); o TPM + PIN precisa do boot UEFI."
+    [[ "$(cat /sys/class/tpm/tpm0/tpm_version_major 2>/dev/null)" == 2 ]] \
+        || die "Não encontrei um chip TPM 2.0 ativo. Na BIOS da Lenovo, veja Security → Security Chip (Intel PTT) e deixe Enabled."
+    if [[ "$(efi_flag SecureBoot)" != 1 ]]; then
+        printf '%sRecomendado: ative antes a Inicialização Segura.%s Sem ela, o TPM protege bem menos,\n' "$clay" "$off"
+        echo "e ao ativá-la depois o notebook volta a pedir a senha do disco até você refazer este passo."
+        read -rp "Continuar mesmo assim? [s/N] " answer
+        [[ "${answer,,}" == s* ]] || exit 0
+    fi
+    cat <<EOF
+
+Como no BitLocker com PIN: o disco só abre neste notebook, com o boot original, e com o PIN.
+Primeiro digite a ${bold}senha atual do disco${off}; depois escolha um ${bold}PIN${off} (pelo menos 4 caracteres).
+A senha do disco continua valendo como chave de recuperação.
+
+EOF
+    systemd-cryptenroll --wipe-slot=tpm2 --tpm2-device=auto --tpm2-pcrs=7 --tpm2-with-pin=yes "$LUKS_DEV" \
+        || die "Não foi possível cadastrar o TPM. Nada mudou: o disco continua abrindo com a senha."
+    grep -q 'tpm2-device=auto' /etc/kernel/cmdline || sed -i '1 s/$/ rd.luks.options=tpm2-device=auto/' /etc/kernel/cmdline
+    mkinitcpio -P >/dev/null || die "Falha ao gerar as imagens de boot. Rode 'sudo mkinitcpio -P' e veja o erro."
+    install -d -m 755 "$STATE_DIR"
+    touch "$STATE_DIR/tpm-ativo"
+    ok "Pronto. No próximo boot, o Clone OS pede o PIN em vez da senha do disco."
+}
+
+cmd_tpm_off() {
+    need_root tpm-off
+    [[ -e "$LUKS_DEV" ]] || die "O disco não foi criptografado na instalação do Clone OS."
+    systemd-cryptenroll --wipe-slot=tpm2 "$LUKS_DEV" || die "Não foi possível remover o TPM do disco."
+    sed -i 's/ rd\.luks\.options=tpm2-device=auto//' /etc/kernel/cmdline
+    mkinitcpio -P >/dev/null || die "Falha ao gerar as imagens de boot. Rode 'sudo mkinitcpio -P' e veja o erro."
+    rm -f "$STATE_DIR/tpm-ativo"
+    ok "Pronto. O disco volta a abrir só com a senha."
+}
+
+pause() { [[ -t 0 ]] && { echo; read -rp "Pressione Enter para fechar..." _ || true; }; }
+
+case "${1:-}" in
+    status)      cmd_status ;;
+    secure-boot) cmd_secure_boot; pause ;;
+    tpm)         cmd_tpm; pause ;;
+    tpm-off)     cmd_tpm_off; pause ;;
+    *) sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

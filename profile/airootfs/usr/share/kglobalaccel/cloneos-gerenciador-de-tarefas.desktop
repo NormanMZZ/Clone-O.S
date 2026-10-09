@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Gerenciador de Tarefas
+Exec=plasma-systemmonitor
+Icon=utilities-system-monitor
+NoDisplay=true
+X-KDE-Shortcuts=Ctrl+Shift+Esc

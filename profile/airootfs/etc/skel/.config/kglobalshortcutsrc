@@ -1,0 +1,6 @@
+[kwin]
+Overview=Meta+Tab\tMeta+W,Meta+W,Toggle Overview
+
+[plasmashell]
+next activity=none,Meta+Tab,Walk through activities
+previous activity=none,Meta+Shift+Tab,Walk through activities (Reverse)

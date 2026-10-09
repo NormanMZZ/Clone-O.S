@@ -1,0 +1,13 @@
+# remove from airootfs!
+# Personaliza a imagem live logo depois que todos os pacotes foram instalados.
+
+[Trigger]
+Operation = Install
+Type = Package
+Target = plasma-desktop
+
+[Action]
+Description = Aplicando a personalização do Clone OS...
+When = PostTransaction
+Depends = bash
+Exec = /usr/local/bin/cloneos-build-customize

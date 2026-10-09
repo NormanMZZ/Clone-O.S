@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal Claude
+GenericName=Claude Code no terminal
+Comment=Converse com o Claude e peça tarefas no seu computador
+Exec=/usr/local/bin/terminal-claude
+Icon=terminal-claude
+Terminal=false
+Categories=Utility;Development;System;
+Keywords=ia;ai;claude;terminal;agente;assistente;
+StartupWMClass=terminal-claude
+StartupNotify=true
+X-KDE-Shortcuts=Meta+C
