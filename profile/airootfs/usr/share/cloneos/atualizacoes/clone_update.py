@@ -828,6 +828,7 @@ class Window(QWidget):
         line = line.strip()
         if line.startswith("@@ETAPA"):
             step = line.split(maxsplit=1)[1] if " " in line else ""
+            self.phase = step
             self.set_step({
                 "sincronizar": "Baixando a lista de versões do Arch Linux…",
                 "chaves": "Atualizando as chaves de segurança do Arch…",
@@ -837,8 +838,10 @@ class Window(QWidget):
         elif line.startswith("@@FIM"):
             self.fim = line
         elif line.endswith(" downloading..."):
-            self.counts["down"] += 1
-            self.progress("Baixando", self.counts["down"])
+            # Na sincronização, as linhas são as listas de versões (core, extra), não pacotes.
+            if getattr(self, "phase", "") in ("sistema", "aur-instalar"):
+                self.counts["down"] += 1
+                self.progress("Baixando", self.counts["down"])
         elif line.startswith("checking package integrity"):
             self.set_step("Conferindo as assinaturas dos pacotes…")
         elif m := re.match(r"(upgrading|installing|reinstalling|removing|downgrading) (\S+)\.\.\.$", line):
@@ -847,7 +850,10 @@ class Window(QWidget):
             self.progress("Instalando", self.counts["inst"], m.group(2))
         elif line.startswith(":: Running post-transaction hooks"):
             self.bar.setRange(0, 0)
-            self.set_step("Finalizando: preparando o boot e assinando o kernel…")
+            if any(n.startswith("linux") for n in self.upgraded):
+                self.set_step("Finalizando: preparando o boot com o kernel novo e assinando…")
+            else:
+                self.set_step("Finalizando os ajustes do sistema…")
         elif line.startswith("error:"):
             self.errors.append(line)
 
