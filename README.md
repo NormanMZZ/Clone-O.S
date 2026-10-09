@@ -3,8 +3,8 @@ Estou desenvolvendo um O.S baseado em arch linux, com a interface do windows11, 
 
 
 Um Arch Linux com KDE Plasma 6 com a cara e o jeito do **Windows 11**, e o Claude integrado ao sistema,
-feito para ser **instalado** num notebook específico: **Intel Core i5 de 8ª geração, 8 GB de RAM DDR4 (2400 MHz) e HD de 1 TB**.
-A instalação substitui o Windows 10 do notebook.
+feito para ser **instalado** em notebook ou pc de baixa configuração
+
 
 - **Base:** perfil oficial `releng` do Arch (o mesmo da ISO oficial) + pacotes dos repositórios oficiais,
   com toda a segurança padrão do Arch (pacotes assinados, root bloqueado, sudo com senha, faillock).
@@ -43,7 +43,7 @@ fonte Inter, som (volume até 150%, sem reamostragem desnecessária), Reprodutor
 e mostra o espaço ocupado, Thunderbird/Node.js/pandas fora da instalação padrão. Correções da 0.2: montagem
 da partição EFI, navegador padrão (Brave) e ícone do app do Claude na área de trabalho.
 
-| | 0.1 (alpha, VM) | 0.2 / 0.3 (notebook) |
+| | 0.1 (alpha, VM) | 0.2 / 0.3 |
 |---|---|---|
 | Alvo | máquina virtual | notebook i5 8ª geração, 8 GB, HD 1 TB |
 | Navegador | Chromium | Brave |
