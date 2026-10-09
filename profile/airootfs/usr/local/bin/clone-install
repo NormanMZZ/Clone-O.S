@@ -40,7 +40,7 @@ cat <<EOF
 ${blue}         /\\${off}
 ${blue}        /  \\   ${clay}  /\\${off}
 ${blue}       / /\\ \\ ${clay}  /  \\${off}      ${bold}Instalador do Clone OS${off}
-${blue}      / /  \\ \\${clay} / /\\ \\${off}     ${dim}0.3 · edição notebook · baseado no Arch Linux${off}
+${blue}      / /  \\ \\${clay} / /\\ \\${off}     ${dim}0.3.5 · edição notebook · baseado no Arch Linux${off}
 ${blue}     /_/    \\_${clay}/ /  \\ \\${off}
 ${clay}              /_/    \\_\\${off}
 

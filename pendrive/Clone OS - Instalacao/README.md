@@ -1,4 +1,4 @@
-# Clone OS 0.3 (notebook): instalação passo a passo
+# Clone OS 0.3.5 (notebook): instalação passo a passo
 
 O Clone OS é um Arch Linux com a cara e o jeito do **Windows 11**: barra de tarefas embaixo com os
 ícones no centro, menu Iniciar, Configurações, Explorador de Arquivos e os mesmos atalhos de teclado.
@@ -102,9 +102,9 @@ No modo live tudo é mais lento que no sistema instalado, porque roda do pendriv
 4. A área de trabalho abre com o **Clone Welcome**:
    1. **Bem-vindo**: clique em **Começar**.
    2. **Conectar o Claude**: primeiro conecte o Wi-Fi (ícone perto do relógio). Depois:
-      - **Entrar com Claude** abre o **Terminal Claude**. Escolha o tema, depois o login com a
-        **conta Claude (assinatura)**. O Brave abre na página de login: entre e clique em
-        **Autorizar**. Volte ao terminal: pronto, o Claude já responde.
+      - **Entrar com Claude** abre o **Terminal Claude**. Clique em **Entrar com o Claude**: abre
+        uma janelinha de terminal e o Brave na página de login da **conta Claude (assinatura)**.
+        Entre e clique em **Autorizar**. Em alguns segundos o Terminal Claude mostra **Conectado**.
       - **Abrir o app** abre o **app do Claude**. Clique em entrar e use a mesma conta.
    3. **Permissões**: deixe o padrão (Documentos e Downloads, "Perguntar antes de agir").
    4. **Aparência**: tema, cor de destaque e papel de parede.
@@ -189,7 +189,7 @@ PIN curto ao ligar. O disco só abre neste notebook, com o sistema original, e c
 
 | Programa | Para quê |
 |---|---|
-| **Terminal Claude** | O Claude Code numa janela com a cara do Claude. Peça em português: organizar arquivos, montar planilhas, ajustar o sistema. |
+| **Terminal Claude** | O Claude Code numa janela no estilo do app do Claude, toda em português. Peça: organizar arquivos, montar planilhas, ajustar o sistema. |
 | **Claude** (app) | O app oficial do Claude para Linux: conversas, projetos e Claude Code. |
 | **Brave** | Navegador padrão, com bloqueio de anúncios e rastreadores. |
 | **Explorador de Arquivos, Bloco de Notas, Calculadora, Câmera, Fotos, Paint, Reprodutor de Mídia, Ferramenta de Captura, Leitor de PDF** | Os básicos do Windows, com os mesmos nomes. |
@@ -208,12 +208,23 @@ repositórios oficiais do Arch. Ou peça ao Claude ("instala o GIMP pra mim").
 - O Claude só enxerga a pasta `~/Clone` e as pastas liberadas no Clone Welcome, e pede
   confirmação antes de mudar qualquer coisa.
 
-### Dicas do Terminal Claude
+### Usando o Terminal Claude
 
-- `/login` entra (ou troca) a conta; `/help` mostra os comandos.
-- Comece uma mensagem com `!` para rodar um comando do sistema sem sair do Claude.
-- **Ctrl+C duas vezes** sai do Claude. A janela continua aberta como terminal comum;
-  digite `claude` para voltar.
+- Escreva na caixa de baixo e tecle **Enter** (Shift+Enter quebra a linha). O botão redondo
+  vira **■ Parar** enquanto o Claude responde (ou tecle **Esc**).
+- **Modelo** (botão embaixo, à esquerda): **Opus** (recomendado), **Sonnet** (mais rápido),
+  **Haiku** (o mais leve) ou **Fable** (o mais capaz, gasta mais da sua cota). Vale a partir da
+  próxima mensagem, sem perder a conversa.
+- **Grau de esforço** (botão com as barrinhas): de **Baixo** (respostas rápidas) a **Máximo**
+  (pensa o máximo possível). **Alto** é o padrão.
+- **Roda de contexto** (ao lado do botão de enviar): mostra quanto da memória da conversa já foi
+  usado. Verde até 60%, amarela até 85% e vermelha depois disso. Quando enche, o Claude resume a
+  conversa sozinho; para um assunto novo, clique em **+ Nova conversa**.
+- **Raciocínio**: clique em "Raciocínio" para ver como o Claude pensou. Ele responde e pensa em português.
+- Quando o Claude quer rodar um comando ou mudar um arquivo, aparece um cartão com **Permitir**,
+  **Permitir sempre nesta conversa** e **Negar**.
+- As conversas ficam na barra da esquerda (botão direito para renomear ou apagar).
+- Prefere o terminal? Menu **•••** → **Abrir no modo texto**.
 
 ---
 

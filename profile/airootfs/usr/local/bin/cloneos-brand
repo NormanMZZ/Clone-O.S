@@ -5,12 +5,12 @@ set -euo pipefail
 
 cat >/usr/lib/os-release <<'EOF'
 NAME="Clone OS"
-PRETTY_NAME="Clone OS 0.3 (notebook)"
+PRETTY_NAME="Clone OS 0.3.5 (notebook)"
 ID=cloneos
 ID_LIKE=arch
 BUILD_ID=rolling
-VERSION="0.3 (notebook)"
-VERSION_ID=0.3
+VERSION="0.3.5 (notebook)"
+VERSION_ID=0.3.5
 ANSI_COLOR="38;2;23;147;209"
 HOME_URL="https://archlinux.org/"
 DOCUMENTATION_URL="https://wiki.archlinux.org/"

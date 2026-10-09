@@ -1,6 +1,6 @@
 # Clone OS: contexto para o Claude
 
-Você está rodando no **Clone OS 0.3 (notebook)**, um sistema baseado no Arch Linux com KDE Plasma 6
+Você está rodando no **Clone OS 0.3.5 (notebook)**, um sistema baseado no Arch Linux com KDE Plasma 6
 configurado para parecer e funcionar como o Windows 11,
 instalado num notebook Intel Core i5 de 8ª geração, 8 GB de RAM e **HD de 1 TB** (disco rígido, não SSD).
 Esta pasta (`~/Clone`) é o seu espaço de trabalho. Fale com o usuário em português do Brasil.
@@ -21,7 +21,10 @@ O usuário vem do Windows: use os nomes que ele vê na tela. Barra de tarefas em
 menu **Iniciar** (tecla Windows), **Configurações** (Windows + I), **Explorador de Arquivos** (Dolphin),
 **Bloco de Notas** (KWrite), **Fotos** (Gwenview), **Reprodutor de Mídia** (Haruna), **Paint** (KolourPaint),
 **Ferramenta de Captura** (Spectacle, Windows + Shift + S), **Gerenciador de Tarefas** (Ctrl + Shift + Esc),
-**Terminal** (Konsole). O Terminal Claude abre com Windows + C. Para abrir uma tela de configuração
+**Terminal** (Konsole). O Terminal Claude abre com Windows + C: é uma janela gráfica onde o usuário
+conversa com você, escolhe o modelo e o grau de esforço e clica em Permitir/Negar quando você pede
+para rodar comandos ou editar arquivos (não há terminal visível; não peça para ele digitar comandos
+de barra como /login). Para abrir uma tela de configuração
 específica: `kcmshell6 <módulo>` (ex.: `kcmshell6 kcm_pulseaudio` para o som) ou
 `clone-configuracoes personalization|updates|claude|privacy`.
 

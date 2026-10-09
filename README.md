@@ -1,5 +1,5 @@
 # Clone-O.S
-Estou desenvolvendo um O.S baseado em arch linux, com a interface do windows11, atualmente está na versão 0.3
+Estou desenvolvendo um O.S baseado em arch linux, com a interface do windows11, atualmente está na versão 0.3.5
 
 
 Um Arch Linux com KDE Plasma 6 com a cara e o jeito do **Windows 11**, e o Claude integrado ao sistema,
@@ -8,7 +8,8 @@ feito para ser **instalado** em notebook ou pc de baixa configuração
 
 - **Base:** perfil oficial `releng` do Arch (o mesmo da ISO oficial) + pacotes dos repositórios oficiais,
   com toda a segurança padrão do Arch (pacotes assinados, root bloqueado, sudo com senha, faillock).
-- **Claude:** **Terminal Claude** (o Claude Code numa janela com o visual do Claude, ícone na área de
+- **Claude:** **Terminal Claude** (o Claude Code numa janela gráfica no estilo do app do Claude: conversas,
+  seletor de modelo e de grau de esforço, roda de uso do contexto, botões Permitir/Negar; ícone na área de
   trabalho e tecla Meta+C), o **app oficial do Claude para Linux** e o Claude Code no sistema todo.
 - **Navegador:** **Brave** como padrão.
 - **HD rápido:** sistema no começo do disco, zram, BFQ, pré-carregamento dos apps, menos escrita no disco.
@@ -35,6 +36,17 @@ O guia de instalação para quem vai usar o notebook está em
 (é a pasta que vai no pendrive).
 
 ## O que mudou
+
+**0.3.5:** o Terminal Claude virou uma janela gráfica clicável no estilo do app oficial
+(`usr/share/cloneos/terminal-claude/claude_app.py`, PySide6). Ela roda o Claude Code sem terminal
+(`claude -p --output-format stream-json`, retomando a sessão com `--resume`), então continuam valendo a
+conta Claude, as ferramentas, o `CLAUDE.md` e as permissões do Clone Welcome. Tem conversas salvas na
+barra lateral, respostas e raciocínio em pt-BR (instrução fixa via `--append-system-prompt`), seletor de
+modelo (Opus, Sonnet, Haiku, Fable) e de grau de esforço (Baixo a Máximo), roda de uso do contexto por
+conversa, cartões de ferramentas e pedidos de permissão com Permitir/Negar (servidor MCP `aprovar_mcp.py`
+ligado em `--permission-prompt-tool`). O modo texto continua em `terminal-claude --texto`. Também:
+as medições extras NvPCR do systemd ficam desligadas (falhavam e tiravam a tela de boot gráfica) e
+a hibernação fica desativada (a troca de memória é zram).
 
 **0.3 (definitiva):** visual e atalhos do Windows 11 (tema global `org.cloneos.desktop`), app Configurações,
 nomes de apps estilo Windows (`cloneos-nomes`), Plymouth + GRUB escondido, papéis de parede Bloom/Brisa,

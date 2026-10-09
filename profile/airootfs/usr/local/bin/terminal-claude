@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Terminal Claude: o Claude Code numa janela com a cara do Claude.
-# Abre na pasta de trabalho ~/Clone; as pastas liberadas e o modo de permissão
-# ficam em ~/.claude/settings.json (definidos pelo Clone Welcome).
+# Terminal Claude: o Claude Code numa janela no estilo do app do Claude.
+# Trabalha na pasta ~/Clone; as pastas liberadas e o modo de permissão ficam em
+# ~/.claude/settings.json (definidos pelo Clone Welcome).
 #
-#   terminal-claude            abre a janela (ícone da área de trabalho, atalho Meta+C)
+#   terminal-claude            abre a janela gráfica (ícone da área de trabalho, atalho Meta+C)
+#   terminal-claude --texto    abre o modo texto (o Claude Code no terminal, com o visual do Claude)
 #   terminal-claude [args]     dentro de um terminal: roda o Claude ali mesmo, com esses argumentos
 set -u
 
@@ -14,14 +15,30 @@ clay=$'\e[38;2;217;119;87m'; cream=$'\e[38;2;236;234;227m'; muted=$'\e[38;2;156;
 mkdir -p "$workspace"
 [[ -e "$workspace/CLAUDE.md" ]] || cp /usr/share/cloneos/CLAUDE.md "$workspace/CLAUDE.md"
 
+text_window() {
+    exec alacritty --config-file "$share/alacritty.toml" --class terminal-claude-texto \
+        --title "Terminal Claude (modo texto)" --working-directory "$workspace" -e "$0" --janela "$@"
+}
+
 in_window=0
-if [[ "${1:-}" == --janela ]]; then
-    in_window=1
-    shift
-elif [[ ! -t 0 || ! -t 1 ]]; then
-    exec alacritty --config-file "$share/alacritty.toml" --class terminal-claude \
-        --title "Terminal Claude" --working-directory "$workspace" -e "$0" --janela "$@"
-fi
+case "${1:-}" in
+    --texto)
+        shift
+        text_window "$@"
+        ;;
+    --janela)
+        in_window=1
+        shift
+        ;;
+    *)
+        if [[ ! -t 0 || ! -t 1 ]]; then
+            if [[ $# -eq 0 && ( -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ) ]]; then
+                exec python3 "$share/claude_app.py"
+            fi
+            text_window "$@"
+        fi
+        ;;
+esac
 
 cd "$workspace" || exit 1
 

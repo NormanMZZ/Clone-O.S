@@ -464,7 +464,7 @@ class AboutPage(Page):
             ("Armazenamento", disk_summary()),
         ]
         system = [
-            ("Sistema", os_release("PRETTY_NAME", "Clone OS 0.3 (notebook)")),
+            ("Sistema", os_release("PRETTY_NAME", "Clone OS 0.3.5 (notebook)")),
             ("Base", "Arch Linux"),
             ("Kernel", output(["uname", "-r"], "7.2.9-arch1-1")),
             ("Área de trabalho", output(["plasmashell", "--version"], "plasmashell 6.7.5").replace("plasmashell", "KDE Plasma")),
@@ -1051,7 +1051,7 @@ class Settings(QWidget):
         self.nav.clicked.connect(self.go)
         box.addWidget(self.nav)
         box.addStretch(1)
-        box.addWidget(cw.label(os_release("PRETTY_NAME", "Clone OS 0.3 (notebook)"), "Small"))
+        box.addWidget(cw.label(os_release("PRETTY_NAME", "Clone OS 0.3.5 (notebook)"), "Small"))
         return side
 
     def go(self, key: str) -> None:
