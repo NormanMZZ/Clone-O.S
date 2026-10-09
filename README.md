@@ -1,4 +1,6 @@
-# Clone OS 0.3 (edição notebook)
+# Clone-O.S
+Estou desenvolvendo um O.S baseado em arch linux, com a interface do windows11, atualmente está na versão 0.3
+
 
 Um Arch Linux com KDE Plasma 6 com a cara e o jeito do **Windows 11**, e o Claude integrado ao sistema,
 feito para ser **instalado** num notebook específico: **Intel Core i5 de 8ª geração, 8 GB de RAM DDR4 (2400 MHz) e HD de 1 TB**.
