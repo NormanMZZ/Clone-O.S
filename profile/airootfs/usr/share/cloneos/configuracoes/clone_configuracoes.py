@@ -464,7 +464,7 @@ class AboutPage(Page):
             ("Armazenamento", disk_summary()),
         ]
         system = [
-            ("Sistema", os_release("PRETTY_NAME", "Clone OS 0.3.5 (notebook)")),
+            ("Sistema", os_release("PRETTY_NAME", "Clone OS 0.4 (notebook)")),
             ("Base", "Arch Linux"),
             ("Kernel", output(["uname", "-r"], "7.2.9-arch1-1")),
             ("Área de trabalho", output(["plasmashell", "--version"], "plasmashell 6.7.5").replace("plasmashell", "KDE Plasma")),
@@ -874,7 +874,8 @@ class UpdatesPage(Page):
         text.addWidget(self.progress)
         line.addLayout(text, 1)
         self.check_btn = cw.button("Verificar atualizações", None, self.check)
-        self.update_btn = cw.button("Atualizar agora", "Primary", lambda: run(["/usr/local/bin/clone-update"]))
+        self.update_btn = cw.button("Abrir o Clone Update", "Primary",
+                                   lambda: run(["/usr/local/bin/clone-atualizacoes", "--verificar"]))
         line.addWidget(self.check_btn)
         line.addWidget(self.update_btn)
         box.addLayout(line)
@@ -910,7 +911,6 @@ class UpdatesPage(Page):
         else:
             self.headline.setText("Você está atualizado")
             self.detail.setText(f"Última verificação: {stamp}.")
-        self.update_btn.setVisible(bool(count))
 
     def check(self) -> None:
         self.check_btn.setEnabled(False)
@@ -927,7 +927,11 @@ class UpdatesPage(Page):
 
     def finished_check(self, out: str) -> None:
         count = len([line for line in out.splitlines() if line.strip()])
-        cw.write_json(self.state_file, {"checked": time.time(), "count": count})
+        # O arquivo é compartilhado com o Clone Update: mescla, sem apagar o aviso de reinício.
+        data = self.saved()
+        data.pop("result", None)
+        data.update({"checked": time.time(), "count": count})
+        cw.write_json(self.state_file, data)
         self.progress.hide()
         self.check_btn.setEnabled(True)
         self.show_state()
@@ -1051,7 +1055,7 @@ class Settings(QWidget):
         self.nav.clicked.connect(self.go)
         box.addWidget(self.nav)
         box.addStretch(1)
-        box.addWidget(cw.label(os_release("PRETTY_NAME", "Clone OS 0.3.5 (notebook)"), "Small"))
+        box.addWidget(cw.label(os_release("PRETTY_NAME", "Clone OS 0.4 (notebook)"), "Small"))
         return side
 
     def go(self, key: str) -> None:

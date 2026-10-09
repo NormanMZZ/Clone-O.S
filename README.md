@@ -1,5 +1,5 @@
 # Clone-O.S
-Estou desenvolvendo um O.S baseado em arch linux, com a interface do windows11, atualmente está na versão 0.3.5
+Estou desenvolvendo um O.S baseado em arch linux, com a interface do windows11, atualmente está na versão 0.4
 
 
 Um Arch Linux com KDE Plasma 6 com a cara e o jeito do **Windows 11**, e o Claude integrado ao sistema,
@@ -36,6 +36,17 @@ O guia de instalação para quem vai usar o notebook está em
 (é a pasta que vai no pendrive).
 
 ## O que mudou
+
+**0.4:** app de atualizações **Clone Update** (`usr/share/cloneos/atualizacoes/clone_update.py`,
+`clone-atualizacoes`), no estilo do Windows Update. Verifica sem senha (`checkupdates`, API do AUR,
+`arch-audit` e o feed de avisos do Arch), mostra as atualizações por grupo com as correções de segurança
+marcadas, e instala com a senha pela janela do KDE: `pkexec` + `/usr/lib/cloneos/atualizar-sistema`
+(regra `org.cloneos.atualizar`, que só atualiza pelo pacman, com as chaves do Arch primeiro, ou instala
+os pacotes do AUR permitidos). Brave, app do Claude, Claude Code e yay são compilados como usuário e só
+instalados se o `.SRCINFO` ainda apontar para os sites oficiais. Progresso pelas linhas do pacman,
+saída completa num painel de detalhes, `systemd-inhibit` contra suspender no meio, aviso de bateria e
+de espaço, pedido de reinício quando o kernel/systemd/mesa mudam, histórico pelo `pacman.log` e botão
+para pedir ajuda ao Claude (`terminal-claude --pergunta`). O aviso diário e as Configurações abrem o app.
 
 **0.3.5:** o Terminal Claude virou uma janela gráfica clicável no estilo do app oficial
 (`usr/share/cloneos/terminal-claude/claude_app.py`, PySide6). Ela roda o Claude Code sem terminal

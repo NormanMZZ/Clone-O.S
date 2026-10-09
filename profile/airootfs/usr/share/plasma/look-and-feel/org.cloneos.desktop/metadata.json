@@ -11,7 +11,7 @@
         "Id": "org.cloneos.desktop",
         "License": "GPLv2+",
         "Name": "Clone OS",
-        "Version": "0.3.5"
+        "Version": "0.4"
     },
     "Keywords": "Desktop;Workspace;Appearance;Look and Feel;Windows 11;Clone OS;",
     "X-Plasma-APIVersion": "2"

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Parte do Clone Update que roda como administrador (pelo pkexec, com a senha do usuário;
+# regra em /usr/share/polkit-1/actions/org.cloneos.atualizar.policy). Faz só duas coisas:
+#
+#   atualizar-sistema sistema [PACOTE...]  atualiza tudo pelo pacman (chaves do Arch primeiro) e,
+#                                          depois, instala os pacotes do AUR dados
+#   atualizar-sistema aur PACOTE...        só instala os pacotes do AUR
+#
+# Os pacotes do AUR são os que o Clone Update compilou e conferiu, e só podem ser Brave,
+# app do Claude, Claude Code e yay. Assim a senha é pedida uma vez só para tudo.
+# Linhas que começam com @@ são para o app: @@ETAPA <nome> e @@FIM ok|erro <motivo>.
+set -uo pipefail
+export LC_ALL=C
+
+step() { echo "@@ETAPA $*"; }
+fail() { echo "@@FIM erro $*"; exit 1; }
+
+(( EUID == 0 )) || fail "admin"
+if [[ -e /var/lib/pacman/db.lck ]]; then
+    pgrep -x pacman >/dev/null && fail "ocupado"
+    fail "trava"
+fi
+
+install_aur() {
+    (( $# )) || return 0
+    local allowed=" brave-bin claude-desktop claude-code yay-bin "
+    local home base work real copy name
+    home="$(getent passwd "${PKEXEC_UID:-}" | cut -d: -f6)"
+    [[ -n "$home" ]] || fail "usuario"
+    base="$home/.cache/cloneos/atualizacoes/aur/"
+    # Cópia numa pasta do administrador: o usuário não consegue trocar o arquivo entre
+    # a conferência e a instalação.
+    work="$(mktemp -d /var/cache/cloneos-atualizacoes.XXXXXX)" || fail "temporario"
+    trap 'rm -rf -- "$work"' EXIT
+    local files=()
+    for f in "$@"; do
+        real="$(realpath -e -- "$f" 2>/dev/null)" || fail "arquivo"
+        [[ "$real" == "$base"* && "$real" == *.pkg.tar.zst && -f "$real" ]] || fail "arquivo"
+        copy="$work/$(basename -- "$real")"
+        cp -- "$real" "$copy" || fail "arquivo"
+        name="$(bsdtar -xOf "$copy" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p')"
+        [[ "$allowed" == *" $name "* ]] || fail "nao-permitido $name"
+        files+=("$copy")
+    done
+    step aur-instalar
+    pacman -U --needed --noconfirm --noprogressbar "${files[@]}" || fail "aur"
+}
+
+case "${1:-}" in
+    sistema)
+        shift
+        step sincronizar
+        pacman -Sy --noconfirm --noprogressbar || fail "sincronizar"
+        # Chaves novas do Arch antes do resto: sem elas, pacotes assinados por chaves
+        # recentes seriam recusados.
+        if [[ -n "$(pacman -Qu archlinux-keyring 2>/dev/null)" ]]; then
+            step chaves
+            pacman -S --needed --noconfirm --noprogressbar archlinux-keyring || fail "chaves"
+        fi
+        step sistema
+        pacman -Su --noconfirm --noprogressbar || fail "sistema"
+        install_aur "$@"
+        echo "@@FIM ok"
+        ;;
+    aur)
+        shift
+        (( $# )) || fail "uso"
+        install_aur "$@"
+        echo "@@FIM ok"
+        ;;
+    *)
+        fail "uso"
+        ;;
+esac

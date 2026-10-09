@@ -1086,7 +1086,7 @@ def os_version() -> str:
                 return line.split("=", 1)[1].strip('"')
     except OSError:
         pass
-    return "0.3.5 (notebook)"
+    return "0.4 (notebook)"
 
 
 def should_autostart() -> bool:

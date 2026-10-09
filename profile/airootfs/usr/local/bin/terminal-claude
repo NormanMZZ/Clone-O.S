@@ -5,6 +5,7 @@
 #
 #   terminal-claude            abre a janela gráfica (ícone da área de trabalho, atalho Meta+C)
 #   terminal-claude --texto    abre o modo texto (o Claude Code no terminal, com o visual do Claude)
+#   terminal-claude --pergunta "texto"   abre a janela com a pergunta já escrita (não envia sozinho)
 #   terminal-claude [args]     dentro de um terminal: roda o Claude ali mesmo, com esses argumentos
 set -u
 
@@ -25,6 +26,10 @@ case "${1:-}" in
     --texto)
         shift
         text_window "$@"
+        ;;
+    --pergunta)
+        # Abre a janela com a pergunta já escrita (usado pelo Clone Update e outros apps).
+        exec python3 "$share/claude_app.py" "$@"
         ;;
     --janela)
         in_window=1

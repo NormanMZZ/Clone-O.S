@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Avisa, com uma notificação do KDE, quando há atualizações para o Clone OS.
 # Roda uma vez por dia (cloneos-atualizacoes.timer, por usuário). Só consulta;
-# quem atualiza é o clone-update, quando você clica em "Atualizar agora".
+# quem atualiza é o Clone Update (clone-atualizacoes), quando você clica em "Atualizar agora".
 set -u
 
 official="$(checkupdates 2>/dev/null | wc -l)"
@@ -13,5 +13,5 @@ choice="$(notify-send --app-name="Clone OS" --icon=system-software-update \
     --action=atualizar="Atualizar agora" \
     "Atualizações disponíveis" \
     "$total pacote(s) com versão nova, incluindo correções de segurança.")"
-[[ "$choice" == atualizar ]] && exec /usr/local/bin/clone-update
+[[ "$choice" == atualizar ]] && exec /usr/local/bin/clone-atualizacoes --verificar
 exit 0

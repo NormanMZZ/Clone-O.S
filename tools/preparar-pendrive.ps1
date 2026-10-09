@@ -32,10 +32,10 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 
 if (-not $Iso) {
-    $Iso = Get-ChildItem (Join-Path $repo 'out\cloneos-0.3*-notebook*.iso') -ErrorAction SilentlyContinue |
+    $Iso = Get-ChildItem (Join-Path $repo 'out\cloneos-*-notebook*.iso') -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime | Select-Object -Last 1 -ExpandProperty FullName
 }
-if (-not $Iso -or -not (Test-Path $Iso)) { Write-Host 'ISO do Clone OS 0.3.x não encontrada em out\.' -ForegroundColor Red; Pausar; exit 1 }
+if (-not $Iso -or -not (Test-Path $Iso)) { Write-Host 'ISO do Clone OS não encontrada em out\.' -ForegroundColor Red; Pausar; exit 1 }
 $guia = Join-Path $repo 'pendrive\Clone OS - Instalacao'
 if (-not (Test-Path $guia)) { Write-Host "Pasta do guia não encontrada: $guia" -ForegroundColor Red; Pausar; exit 1 }
 

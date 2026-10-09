@@ -1,4 +1,4 @@
-# Clone OS 0.3.5 (notebook): instalação passo a passo
+# Clone OS 0.4 (notebook): instalação passo a passo
 
 O Clone OS é um Arch Linux com a cara e o jeito do **Windows 11**: barra de tarefas embaixo com os
 ícones no centro, menu Iniciar, Configurações, Explorador de Arquivos e os mesmos atalhos de teclado.
@@ -174,7 +174,7 @@ PIN curto ao ligar. O disco só abre neste notebook, com o sistema original, e c
 | Segurança do Windows | **Configurações → Privacidade e segurança** |
 | Windows Defender | **Antivírus** (botão direito num arquivo → **Verificar vírus**) |
 | BitLocker | Disco criptografado (LUKS2) com **TPM + PIN** |
-| Windows Update | **Configurações → Atualizações** |
+| Windows Update | **Clone Update** (menu Iniciar, ou Configurações → Atualizações) |
 | Explorador de Arquivos (Windows + E) | Explorador de Arquivos |
 | Copilot (Windows + C) | **Terminal Claude** |
 | Gerenciador de Tarefas (Ctrl + Shift + Esc) | Gerenciador de Tarefas |
@@ -198,6 +198,26 @@ PIN curto ao ligar. O disco só abre neste notebook, com o sistema original, e c
 Quer mais programas? **Configurações → Aplicativos → Instalar mais programas** tem os mais
 procurados (Thunderbird, GIMP, VLC, OBS Studio, Telegram, Discord, Kdenlive, Krita), todos dos
 repositórios oficiais do Arch. Ou peça ao Claude ("instala o GIMP pra mim").
+
+### Atualizar o sistema: Clone Update
+
+O **Clone Update** (menu Iniciar → "Clone Update", ou o aviso diário de atualizações) é o
+Windows Update do Clone OS:
+
+1. Ele procura sozinho as versões novas do Arch Linux, do KDE Plasma, do Brave e do Claude e
+   mostra a lista separada por tipo, com as **correções de segurança** marcadas em vermelho.
+2. Se o Arch publicou algum **aviso importante** desde a sua última atualização, ele aparece em
+   destaque, com o botão **Explicar com o Claude**.
+3. Clique em **Baixar e instalar** e digite a sua senha na janela que aparece. A barra mostra o
+   que está sendo baixado e instalado; **Mostrar detalhes** abre a saída completa, como num terminal.
+4. Enquanto instala, o notebook não dorme (nem com a tampa fechada). Deixe o carregador ligado:
+   com a bateria abaixo de 30%, o Clone Update avisa antes de começar.
+5. Se o kernel ou partes centrais mudarem, ele pede para **reiniciar**.
+6. Se algo der errado, a mensagem explica em português e o botão **Pedir ajuda ao Claude** abre o
+   Terminal Claude com a pergunta pronta.
+
+O Brave e o Claude vêm do AUR: o Clone Update baixa a receita, confere se ela ainda aponta para
+o site oficial e só então instala. Quem prefere o terminal pode usar `clone-update`.
 
 ### O Claude em todo lugar
 
@@ -289,7 +309,7 @@ fecha de verdade quando você fecha a janela. O sistema instalado ocupa **bem me
   3 senhas erradas, o login trava por 10 minutos.
 - **Antivírus** (ClamAV) com as vacinas atualizadas uma vez por dia; verifique arquivos pelo botão
   direito → **Verificar vírus**, ou em Configurações → Privacidade e segurança.
-- **Aviso de atualizações** todos os dias. Atualize pelo menos uma vez por semana.
+- **Aviso de atualizações** todos os dias. Atualize pelo menos uma vez por semana pelo **Clone Update**.
 
 ---
 

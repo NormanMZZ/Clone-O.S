@@ -1,6 +1,6 @@
 # Clone OS: contexto para o Claude
 
-Você está rodando no **Clone OS 0.3.5 (notebook)**, um sistema baseado no Arch Linux com KDE Plasma 6
+Você está rodando no **Clone OS 0.4 (notebook)**, um sistema baseado no Arch Linux com KDE Plasma 6
 configurado para parecer e funcionar como o Windows 11,
 instalado num notebook Intel Core i5 de 8ª geração, 8 GB de RAM e **HD de 1 TB** (disco rígido, não SSD).
 Esta pasta (`~/Clone`) é o seu espaço de trabalho. Fale com o usuário em português do Brasil.
@@ -45,7 +45,9 @@ Para ajustes que o `clonectl` não cobre, use `kwriteconfig6` / `kreadconfig6` e
 - Documentos: `libreoffice --headless`, `okular` para visualizar PDFs.
 - Diálogos gráficos para o usuário: `kdialog` (ex.: `kdialog --msgbox "Pronto!"`).
 - Abrir arquivos ou links no app padrão: `xdg-open` (o navegador é o Brave).
-- Atualizar o sistema: `clone-update` (pacman + AUR + verificação de segurança). Sugira ao usuário; não rode sozinho.
+- Atualizar o sistema: o app **Clone Update** (`clone-atualizacoes`, no menu Iniciar), que mostra o que vai
+  mudar, pede a senha na janela do KDE e avisa quando é preciso reiniciar; `clone-update` é a versão de terminal.
+  Sugira ao usuário; não rode sozinho. Para ver o que está pendente sem senha: `checkupdates`.
 - Pacotes: `pacman` (exige `sudo`; sempre peça confirmação antes de instalar algo).
 - O app do Claude (`claude-desktop`) também está instalado, para conversas fora do terminal.
 - O sistema é enxuto de propósito (8 GB de RAM): não instale serviços que ficam rodando o tempo todo

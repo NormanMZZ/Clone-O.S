@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Clone Update
+GenericName=Atualizações do sistema
+Comment=Procure e instale as atualizações do Clone OS, do Brave e do Claude
+Exec=/usr/local/bin/clone-atualizacoes --verificar
+Icon=system-software-update
+Terminal=false
+Categories=System;Settings;PackageManager;
+Keywords=atualizar;atualização;atualizações;update;windows update;pacman;sistema;segurança;
+StartupWMClass=clone-atualizacoes
+StartupNotify=true

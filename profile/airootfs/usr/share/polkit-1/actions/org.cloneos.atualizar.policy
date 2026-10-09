@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Clone Update: a senha do usuário (administrador) libera só o atualizar-sistema,
+     e fica valendo por alguns minutos para instalar o Brave e o Claude logo depois. -->
+<policyconfig>
+  <vendor>Clone OS</vendor>
+  <icon_name>system-software-update</icon_name>
+  <action id="org.cloneos.atualizar">
+    <description>Install Clone OS updates</description>
+    <description xml:lang="pt_BR">Instalar as atualizações do Clone OS</description>
+    <message>Authentication is required to install the Clone OS updates</message>
+    <message xml:lang="pt_BR">Digite a sua senha para instalar as atualizações do Clone OS</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/cloneos/atualizar-sistema</annotate>
+  </action>
+</policyconfig>

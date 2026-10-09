@@ -67,7 +67,7 @@ def handle(msg: dict) -> None:
         send({"jsonrpc": "2.0", "id": mid, "result": {
             "protocolVersion": version,
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "cloneos", "version": "0.3.5"},
+            "serverInfo": {"name": "cloneos", "version": "0.4"},
         }})
     elif method == "tools/list":
         send({"jsonrpc": "2.0", "id": mid, "result": {"tools": [TOOL]}})

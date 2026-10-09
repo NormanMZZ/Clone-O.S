@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QProcess, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import (QColor, QFont, QFontDatabase, QIcon, QKeySequence, QPainter, QPalette,
+from PySide6.QtGui import (QColor, QFont, QFontDatabase, QIcon, QKeySequence, QPainter, QPalette, QTextCursor,
                            QPen, QPixmap, QShortcut)
 from PySide6.QtNetwork import QLocalServer
 from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QInputDialog, QLabel, QListWidget,
@@ -1553,6 +1553,12 @@ def main() -> int:
     app.setFont(QFont(sans, 10))
     app.setStyleSheet(stylesheet(colors, sans, serif, mono))
     win = MainWindow(colors)
+    if "--pergunta" in sys.argv[1:]:
+        idx = sys.argv.index("--pergunta")
+        if idx + 1 < len(sys.argv):
+            # Só preenche: quem decide enviar é o usuário.
+            win.input.setPlainText(sys.argv[idx + 1])
+            win.input.moveCursor(QTextCursor.End)
     win.show()
     return app.exec()
 

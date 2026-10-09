@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Clone Update: o app de atualizações do Clone OS (no estilo do Windows Update).
+# A versão de terminal continua sendo o clone-update.
+#   clone-atualizacoes              abre o app
+#   clone-atualizacoes --verificar  abre e já procura atualizações
+exec python3 /usr/share/cloneos/atualizacoes/clone_update.py "$@"
